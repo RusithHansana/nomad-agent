@@ -105,6 +105,9 @@ double? _asDouble(Object? value) {
   if (value is num) {
     return value.toDouble();
   }
+  if (value is String) {
+    return double.tryParse(value);
+  }
   return null;
 }
 
@@ -113,7 +116,14 @@ int? _asInt(Object? value) {
     return value;
   }
   if (value is num) {
-    return value.toInt();
+    final asDouble = value.toDouble();
+    if (asDouble % 1 != 0) {
+      return null;
+    }
+    return asDouble.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
   }
   return null;
 }

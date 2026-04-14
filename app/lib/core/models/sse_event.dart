@@ -96,6 +96,20 @@ class ThoughtLogEvent extends SSEEvent {
       'data': data,
     };
   }
+
+  ThoughtLogEvent copyWith({
+    String? timestamp,
+    String? message,
+    String? icon,
+    String? step,
+  }) {
+    return ThoughtLogEvent(
+      timestamp: timestamp ?? this.timestamp,
+      message: message ?? this.message,
+      icon: icon ?? this.icon,
+      step: step ?? this.step,
+    );
+  }
 }
 
 class VenueVerifiedEvent extends SSEEvent {
@@ -111,6 +125,16 @@ class VenueVerifiedEvent extends SSEEvent {
       'timestamp': timestamp,
       'data': <String, Object?>{'venue': venue.toJson()},
     };
+  }
+
+  VenueVerifiedEvent copyWith({
+    String? timestamp,
+    Venue? venue,
+  }) {
+    return VenueVerifiedEvent(
+      timestamp: timestamp ?? this.timestamp,
+      venue: venue ?? this.venue,
+    );
   }
 }
 
@@ -141,6 +165,20 @@ class SelfCorrectionEvent extends SSEEvent {
       'data': data,
     };
   }
+
+  SelfCorrectionEvent copyWith({
+    String? timestamp,
+    String? originalQuery,
+    String? broadenedQuery,
+    String? reason,
+  }) {
+    return SelfCorrectionEvent(
+      timestamp: timestamp ?? this.timestamp,
+      originalQuery: originalQuery ?? this.originalQuery,
+      broadenedQuery: broadenedQuery ?? this.broadenedQuery,
+      reason: reason ?? this.reason,
+    );
+  }
 }
 
 class ItineraryCompleteEvent extends SSEEvent {
@@ -158,6 +196,16 @@ class ItineraryCompleteEvent extends SSEEvent {
       'timestamp': timestamp,
       'data': <String, Object?>{'itinerary': itinerary.toJson()},
     };
+  }
+
+  ItineraryCompleteEvent copyWith({
+    String? timestamp,
+    Itinerary? itinerary,
+  }) {
+    return ItineraryCompleteEvent(
+      timestamp: timestamp ?? this.timestamp,
+      itinerary: itinerary ?? this.itinerary,
+    );
   }
 }
 
@@ -185,6 +233,20 @@ class ErrorEvent extends SSEEvent {
       },
     };
   }
+
+  ErrorEvent copyWith({
+    String? timestamp,
+    String? code,
+    String? message,
+    Map<String, Object?>? details,
+  }) {
+    return ErrorEvent(
+      timestamp: timestamp ?? this.timestamp,
+      code: code ?? this.code,
+      message: message ?? this.message,
+      details: details ?? this.details,
+    );
+  }
 }
 
 class UnknownSSEEvent extends SSEEvent {
@@ -203,5 +265,17 @@ class UnknownSSEEvent extends SSEEvent {
       'timestamp': timestamp,
       'data': data,
     };
+  }
+
+  UnknownSSEEvent copyWith({
+    String? eventType,
+    String? timestamp,
+    Map<String, Object?>? data,
+  }) {
+    return UnknownSSEEvent(
+      eventType: eventType ?? this.eventType,
+      timestamp: timestamp ?? this.timestamp,
+      data: data ?? this.data,
+    );
   }
 }

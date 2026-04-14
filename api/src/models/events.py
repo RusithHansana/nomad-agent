@@ -10,7 +10,7 @@ from src.models.response import ItineraryResponse, Venue
 class SSEEvent(BaseModel):
     event_type: str
     timestamp: str
-    data: BaseModel
+    data: dict[str, object]
 
     @classmethod
     def from_payload(cls, payload: dict[str, object]) -> "SSEEvent":
@@ -18,6 +18,12 @@ class SSEEvent(BaseModel):
 
     def to_payload(self) -> dict[str, object]:
         return self.model_dump(exclude_none=True)
+
+    @classmethod
+    def parse_payload(cls, payload: dict[str, object]) -> "SSEEvent":
+        event_type = payload.get("event_type")
+        model = _EVENT_TYPE_TO_MODEL.get(event_type, cls)
+        return model.model_validate(payload)
 
 
 class ThoughtLogData(BaseModel):
@@ -69,3 +75,12 @@ class ErrorData(BaseModel):
 class ErrorEvent(SSEEvent):
     event_type: Literal["error"] = "error"
     data: ErrorData
+
+
+_EVENT_TYPE_TO_MODEL: dict[object, type[SSEEvent]] = {
+    "thought_log": ThoughtLogEvent,
+    "venue_verified": VenueVerifiedEvent,
+    "self_correction": SelfCorrectionEvent,
+    "itinerary_complete": ItineraryCompleteEvent,
+    "error": ErrorEvent,
+}
