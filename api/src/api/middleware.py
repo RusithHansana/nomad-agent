@@ -23,11 +23,10 @@ def apply_middleware(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
@@ -36,7 +35,6 @@ def apply_middleware(app: FastAPI) -> None:
         else:
             content = _normalize_error(str(exc.detail), "HTTP_ERROR")
         return JSONResponse(status_code=exc.status_code, content=content)
-
 
     @app.exception_handler(Exception)
     async def global_exception_handler(_: Request, exc: Exception) -> JSONResponse:

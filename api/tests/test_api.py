@@ -1,16 +1,12 @@
-import sys
-from pathlib import Path
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from src.main import app
+from src.main import create_app
 
 
 @pytest.mark.asyncio
 async def test_health_check_returns_ok() -> None:
+    app = create_app()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/health")
@@ -21,6 +17,7 @@ async def test_health_check_returns_ok() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_requires_api_key() -> None:
+    app = create_app()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/api/v1/generate", json={"prompt": "trip to japan"})
