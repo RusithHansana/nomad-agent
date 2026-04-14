@@ -1,15 +1,28 @@
-"""NomadAgent API — FastAPI entry point."""
+"""NomadAgent API - FastAPI entry point."""
+
+import logging
 
 from fastapi import FastAPI
 
-app = FastAPI(
-    title="NomadAgent API",
-    version="0.1.0",
-    docs_url="/docs",
-)
+from src.api.middleware import apply_middleware
+from src.api.router import router
+from src.config import get_settings
 
 
-@app.get("/api/v1/health")
-async def health_check() -> dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "ok"}
+def create_app() -> FastAPI:
+    settings = get_settings()
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    )
+
+    app = FastAPI(
+        title="NomadAgent API",
+        version="0.1.0",
+        docs_url="/docs",
+    )
+    apply_middleware(app)
+    app.include_router(router)
+    return app
+
+
+app = create_app()
