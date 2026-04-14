@@ -17,6 +17,9 @@ cd api
 python -m venv .venv
 source .venv/bin/activate
 uv pip install -r requirements.txt -r requirements-dev.txt
+
+# If `uv` is not installed, use:
+# pip install -r requirements.txt -r requirements-dev.txt
 uvicorn src.main:app --reload --port 8000
 ```
 
