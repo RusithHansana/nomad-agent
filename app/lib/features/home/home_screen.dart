@@ -24,6 +24,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _promptController.text.trim().isNotEmpty && !_isSubmitting;
 
   void _handleSuggestionTap(String suggestion) {
+    if (_isSubmitting) {
+      return;
+    }
+
     _promptController.text = suggestion;
     _promptController.selection = TextSelection.collapsed(
       offset: suggestion.length,
@@ -45,7 +49,17 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) {
         return;
       }
-      context.go(AppRoutes.generate, extra: prompt);
+
+      try {
+        context.go(AppRoutes.generate, extra: prompt);
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     });
   }
 
@@ -68,11 +82,6 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Where do you want to go?',
-                style: AppTypography.h2(color: theme.colorScheme.onSurface),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
                 'Describe your dream trip in a sentence. NomadAgent handles the rest.',
                 style: AppTypography.bodySmall(
                   color: theme.colorScheme.onSurface,
@@ -83,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 controller: _promptController,
                 enabled: !_isSubmitting,
                 onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _handleSubmit(),
               ),
               const SizedBox(height: AppSpacing.md),
               SuggestionChips(
@@ -93,7 +103,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: _canSubmit ? _handleSubmit : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
+                  disabledBackgroundColor: AppColors.secondary.withValues(
+                    alpha: 0.3,
+                  ),
                   foregroundColor: AppColors.onSecondary,
+                  disabledForegroundColor: AppColors.onSecondary.withValues(
+                    alpha: 0.3,
+                  ),
                   minimumSize: const Size.fromHeight(52),
                 ),
                 child: _isSubmitting

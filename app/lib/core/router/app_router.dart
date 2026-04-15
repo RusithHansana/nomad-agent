@@ -63,8 +63,9 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.generate,
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
-        final prompt = state.extra as String?;
-        return GenerationScreen(prompt: prompt ?? '');
+        final extra = state.extra;
+        final prompt = extra is String ? extra : '';
+        return GenerationScreen(prompt: prompt);
       },
     ),
     GoRoute(

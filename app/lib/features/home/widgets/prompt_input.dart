@@ -9,22 +9,25 @@ class PromptInput extends StatelessWidget {
     required this.controller,
     required this.enabled,
     required this.onChanged,
+    required this.onSubmitted,
     super.key,
   });
 
   final TextEditingController controller;
   final bool enabled;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return SizedBox(
-      height: 52,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
       child: TextField(
         controller: controller,
         enabled: enabled,
+        textInputAction: TextInputAction.go,
         decoration: InputDecoration(
           hintText: 'Where do you want to go?',
           border: OutlineInputBorder(
@@ -34,6 +37,7 @@ class PromptInput extends StatelessWidget {
         ),
         style: AppTypography.body(color: theme.colorScheme.onSurface),
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
       ),
     );
   }

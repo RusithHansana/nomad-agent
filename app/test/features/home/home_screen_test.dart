@@ -3,9 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app/app.dart';
+import 'package:app/core/router/app_router.dart';
 
 void main() {
   group('Home prompt input flow', () {
+    setUp(() {
+      appRouter.go(AppRoutes.home);
+    });
+
     testWidgets('Go button is disabled when prompt is empty', (tester) async {
       await tester.pumpWidget(const ProviderScope(child: App()));
 
@@ -25,12 +30,25 @@ void main() {
       await tester.tap(find.text(suggestion));
       await tester.pump();
 
-      expect(find.text(suggestion), findsWidgets);
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.controller?.text, suggestion);
 
       final button = tester.widget<ElevatedButton>(
         find.widgetWithText(ElevatedButton, 'Go'),
       );
       expect(button.onPressed, isNotNull);
+    });
+
+    testWidgets('Keyboard submit triggers navigate flow', (tester) async {
+      await tester.pumpWidget(const ProviderScope(child: App()));
+
+      const prompt = 'Weekend in Tokyo, vintage gaming and ramen';
+      await tester.enterText(find.byType(TextField), prompt);
+      await tester.testTextInput.receiveAction(TextInputAction.go);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Generating…'), findsOneWidget);
+      expect(find.textContaining(prompt), findsOneWidget);
     });
 
     testWidgets('Tapping Go navigates to generate and shows prompt', (
