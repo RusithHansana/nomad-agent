@@ -62,7 +62,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.generate,
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const GenerationScreen(),
+      builder: (context, state) {
+        final extra = state.extra;
+        final prompt = extra is String ? extra : '';
+        return GenerationScreen(prompt: prompt);
+      },
     ),
     GoRoute(
       path: AppRoutes.itinerary,
