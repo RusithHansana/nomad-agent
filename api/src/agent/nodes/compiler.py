@@ -57,10 +57,15 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     )
 
     hours_verified = opening_hours is not None
-    is_verified = bool(source_url_str and has_structured_details and hours_verified)
-    verification_note = None if is_verified else "Limited source confidence"
+    force_unverified = bool(raw.get("_degraded_unverified"))
+    is_verified = bool(source_url_str and has_structured_details and hours_verified and not force_unverified)
+
     if not hours_verified:
         verification_note = HOURS_UNVERIFIED_NOTE
+    elif force_unverified:
+        verification_note = "Limited source confidence"
+    else:
+        verification_note = None if is_verified else "Limited source confidence"
 
     return Venue(
         name=name,

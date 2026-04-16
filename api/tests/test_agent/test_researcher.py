@@ -2,7 +2,7 @@ import pytest
 
 from src.agent.nodes.researcher import researcher_node
 from src.agent.state import MAX_RESULTS_PER_TASK, MAX_SEARCH_ITERATIONS_PER_TASK, MAX_TAVILY_CALLS
-from src.agent.tools.tavily_search import TavilySearchTool
+from src.agent.tools.tavily_search import TavilySearchTool, TavilyUnavailableError
 
 
 class FakeSearchTool:
@@ -41,6 +41,27 @@ class AlwaysEmptySearchTool:
     async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
         self.calls.append((query, max_results))
         return []
+
+
+class SuccessThenUnavailableSearchTool:
+    def __init__(self) -> None:
+        self.calls_made = 0
+
+    async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
+        self.calls_made += 1
+        if self.calls_made == 1:
+            return [{"title": "Found", "url": "https://example.com/found"}]
+        raise TavilyUnavailableError("down")
+
+
+class NonIntCallsMadeSearchTool:
+    calls_made = "invalid"
+
+    async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
+        return [
+            {"title": f"result-{index} for {query}", "url": f"https://example.com/{index}"}
+            for index in range(MAX_RESULTS_PER_TASK)
+        ]
 
 
 class FlakyTavilyClient:
@@ -182,6 +203,51 @@ async def test_researcher_handles_tavily_retry_via_search_tool() -> None:
     assert flaky_client.calls == 2
     assert result["task_results"]["Local Research"]
     assert result["tavily_calls_made"] >= 2
+
+
+@pytest.mark.asyncio
+async def test_researcher_marks_best_results_unverified_after_tavily_unavailable() -> None:
+    search_tool = SuccessThenUnavailableSearchTool()
+    state = {
+        "prompt": "trip",
+        "destination": "Kandy",
+        "duration_days": 2,
+        "interest_categories": ["history"],
+        "tasks": [{"name": "Local Research", "query": "hidden temples with opening hours"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    entries = result["task_results"]["Local Research"]
+    assert entries
+    assert entries[0]["_degraded_unverified"] is True
+    assert result["events"]
+    assert any(event["event_type"] == "error" for event in result["events"])
+
+
+@pytest.mark.asyncio
+async def test_researcher_handles_non_int_calls_made_counter() -> None:
+    search_tool = NonIntCallsMadeSearchTool()
+    state = {
+        "prompt": "trip",
+        "destination": "Kandy",
+        "duration_days": 2,
+        "interest_categories": ["history"],
+        "tasks": [{"name": "Local Research", "query": "best historical sites"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert result["task_results"]["Local Research"]
+    assert result["tavily_calls_made"] == 1
 
 
 def test_researcher_declares_iteration_cap_constant() -> None:

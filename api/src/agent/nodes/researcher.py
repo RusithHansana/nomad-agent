@@ -70,12 +70,28 @@ def _fallback_broadened_query(task_name: str, destination: str) -> str:
     return f"popular places in and around {destination}".strip()
 
 
+def _safe_int(value: object, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _mark_results_unverified(results: list[dict[str, object]]) -> list[dict[str, object]]:
+    marked: list[dict[str, object]] = []
+    for item in results:
+        updated_item = dict(item)
+        updated_item["_degraded_unverified"] = True
+        marked.append(updated_item)
+    return marked
+
+
 def _broaden_query(query: str, task_name: str, destination: str) -> str:
     cleaned_query = _remove_specific_constraints(query)
     if cleaned_query and cleaned_query != query and "around" not in cleaned_query.lower():
         return f"{cleaned_query} in and around {destination}".strip()
 
-    if "around" not in cleaned_query.lower() and destination.strip():
+    if cleaned_query and "around" not in cleaned_query.lower() and destination.strip():
         return f"{cleaned_query} in and around {destination}".strip()
 
     return _fallback_broadened_query(task_name=task_name, destination=destination)
@@ -120,23 +136,32 @@ async def researcher_node(
                 break
             attempted_queries.add(current_query)
 
-            previous_tool_calls = int(getattr(tool, "calls_made", 0))
+            previous_tool_calls = _safe_int(getattr(tool, "calls_made", 0), 0)
 
             try:
                 results = await tool.search(current_query, max_results=MAX_RESULTS_PER_TASK)
             except TavilyCallLimitExceededError:
                 break
             except TavilyUnavailableError:
-                latest_tool_calls = int(getattr(tool, "calls_made", previous_tool_calls))
+                latest_tool_calls = _safe_int(
+                    getattr(tool, "calls_made", previous_tool_calls),
+                    previous_tool_calls,
+                )
                 call_increment = latest_tool_calls - previous_tool_calls
                 if call_increment <= 0:
                     call_increment = 1
                 current_calls = min(MAX_TAVILY_CALLS, current_calls + call_increment)
                 # Degrade this task gracefully and continue with remaining tasks.
+                if best_results_for_task:
+                    best_results_for_task = _mark_results_unverified(best_results_for_task)
+                events.append(_build_tavily_unavailable_event(task_name))
                 results_for_task = []
                 break
 
-            latest_tool_calls = int(getattr(tool, "calls_made", previous_tool_calls + 1))
+            latest_tool_calls = _safe_int(
+                getattr(tool, "calls_made", previous_tool_calls + 1),
+                previous_tool_calls + 1,
+            )
             call_increment = latest_tool_calls - previous_tool_calls
             if call_increment <= 0:
                 call_increment = 1

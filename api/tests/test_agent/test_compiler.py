@@ -102,3 +102,34 @@ async def test_compiler_keeps_venue_verified_when_hours_present() -> None:
     venue = result["itinerary_response"]["days"][0]["venues"][0]
     assert venue["is_verified"] is True
     assert venue.get("verification_note") is None
+
+
+@pytest.mark.asyncio
+async def test_compiler_forces_unverified_for_degraded_results() -> None:
+    state = {
+        "prompt": "trip",
+        "destination": "Colombo",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "title": "Cafe Ceylon",
+                    "address": "Main Street",
+                    "opening_hours": ["Mon-Fri 8:00-22:00"],
+                    "url": "https://example.com/cafe-ceylon",
+                    "_degraded_unverified": True,
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    venue = result["itinerary_response"]["days"][0]["venues"][0]
+    assert venue["is_verified"] is False
+    assert venue["verification_note"] == "Limited source confidence"

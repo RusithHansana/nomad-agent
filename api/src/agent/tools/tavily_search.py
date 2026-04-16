@@ -84,9 +84,8 @@ class TavilySearchTool:
                 include_raw_content=True,
             )
 
-        response: dict[str, Any] | None = None
+        response: dict[str, Any] = {}
         attempts_left = self._retry_attempts + 1
-        last_error: Exception | None = None
 
         while attempts_left > 0:
             if self._calls_made >= self._max_total_calls:
@@ -98,15 +97,11 @@ class TavilySearchTool:
                 break
             except Exception as exc:
                 self._calls_made += 1
-                last_error = exc
                 attempts_left -= 1
                 if attempts_left <= 0:
                     raise TavilyUnavailableError("Tavily search failed") from exc
                 if self._retry_delay_seconds > 0:
                     await asyncio.sleep(self._retry_delay_seconds)
-
-        if response is None:
-            raise TavilyUnavailableError("Tavily search failed") from last_error
 
         raw_results = response.get("results", [])
         if not isinstance(raw_results, list):
