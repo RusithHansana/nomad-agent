@@ -2,6 +2,7 @@ import pytest
 
 from src.agent.nodes.researcher import researcher_node
 from src.agent.state import MAX_RESULTS_PER_TASK, MAX_SEARCH_ITERATIONS_PER_TASK, MAX_TAVILY_CALLS
+from src.agent.tools.tavily_search import TavilySearchTool
 
 
 class FakeSearchTool:
@@ -10,7 +11,53 @@ class FakeSearchTool:
 
     async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
         self.calls.append((query, max_results))
-        return [{"title": f"result for {query}"}]
+        return [
+            {"title": f"result-{index} for {query}", "url": f"https://example.com/{index}"}
+            for index in range(MAX_RESULTS_PER_TASK)
+        ]
+
+
+class EmptyThenPopulatedSearchTool:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, int]] = []
+
+    async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
+        self.calls.append((query, max_results))
+        if len(self.calls) == 1:
+            return []
+        return [
+            {
+                "title": f"Found result {index}",
+                "url": f"https://example.com/found-{index}",
+            }
+            for index in range(MAX_RESULTS_PER_TASK)
+        ]
+
+
+class AlwaysEmptySearchTool:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, int]] = []
+
+    async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
+        self.calls.append((query, max_results))
+        return []
+
+
+class FlakyTavilyClient:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def search(self, query: str, **kwargs: object) -> dict[str, object]:
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("temporary network issue")
+        return {
+            "results": [
+                {"title": "Stable Result", "url": "https://example.com/stable"},
+                {"title": "Stable Result 2", "url": "https://example.com/stable-2"},
+                {"title": "Stable Result 3", "url": "https://example.com/stable-3"},
+            ]
+        }
 
 
 @pytest.mark.asyncio
@@ -27,6 +74,7 @@ async def test_researcher_executes_one_search_per_task_and_stores_results() -> N
             {"name": "Route Optimization", "query": "q3"},
         ],
         "tavily_calls_made": 0,
+        "events": [],
         "task_results": {},
         "error_event": None,
     }
@@ -44,6 +92,33 @@ async def test_researcher_executes_one_search_per_task_and_stores_results() -> N
 
 
 @pytest.mark.asyncio
+async def test_researcher_self_corrects_and_emits_event_on_empty_results() -> None:
+    search_tool = EmptyThenPopulatedSearchTool()
+    state = {
+        "prompt": "trip",
+        "destination": "Ella",
+        "duration_days": 2,
+        "interest_categories": ["nature"],
+        "tasks": [{"name": "Things To Do", "query": "hidden waterfalls with opening hours"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert len(search_tool.calls) == 2
+    assert result["task_results"]["Things To Do"]
+    assert result["events"]
+    event = result["events"][0]
+    assert event["event_type"] == "self_correction"
+    assert event["data"]["original_query"] == "hidden waterfalls with opening hours"
+    assert event["data"]["broadened_query"] != event["data"]["original_query"]
+    assert event["data"]["reason"] == "zero_results"
+
+
+@pytest.mark.asyncio
 async def test_researcher_respects_call_budget() -> None:
     search_tool = FakeSearchTool()
     state = {
@@ -53,6 +128,7 @@ async def test_researcher_respects_call_budget() -> None:
         "interest_categories": ["food"],
         "tasks": [{"name": f"Task {index}", "query": f"q{index}"} for index in range(20)],
         "tavily_calls_made": MAX_TAVILY_CALLS,
+        "events": [],
         "task_results": {},
         "error_event": None,
     }
@@ -62,6 +138,50 @@ async def test_researcher_respects_call_budget() -> None:
     assert result["tavily_calls_made"] == MAX_TAVILY_CALLS
     assert result["task_results"] == {}
     assert search_tool.calls == []
+
+
+@pytest.mark.asyncio
+async def test_researcher_enforces_iteration_cap_and_global_budget() -> None:
+    search_tool = AlwaysEmptySearchTool()
+    state = {
+        "prompt": "trip",
+        "destination": "Nuwara Eliya",
+        "duration_days": 2,
+        "interest_categories": ["nature"],
+        "tasks": [{"name": "Local Research", "query": "best tea estates"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert len(search_tool.calls) <= MAX_SEARCH_ITERATIONS_PER_TASK
+    assert result["tavily_calls_made"] <= MAX_TAVILY_CALLS
+
+
+@pytest.mark.asyncio
+async def test_researcher_handles_tavily_retry_via_search_tool() -> None:
+    flaky_client = FlakyTavilyClient()
+    search_tool = TavilySearchTool(client=flaky_client)
+    state = {
+        "prompt": "trip",
+        "destination": "Kandy",
+        "duration_days": 2,
+        "interest_categories": ["history"],
+        "tasks": [{"name": "Local Research", "query": "best historical sites"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert flaky_client.calls == 2
+    assert result["task_results"]["Local Research"]
+    assert result["tavily_calls_made"] >= 2
 
 
 def test_researcher_declares_iteration_cap_constant() -> None:

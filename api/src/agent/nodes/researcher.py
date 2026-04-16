@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -14,7 +15,7 @@ from src.agent.tools.tavily_search import (
     TavilySearchTool,
     TavilyUnavailableError,
 )
-from src.models.events import ErrorData, ErrorEvent
+from src.models.events import ErrorData, ErrorEvent, SelfCorrectionData, SelfCorrectionEvent
 
 
 def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
@@ -29,6 +30,57 @@ def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
     return event.to_payload()
 
 
+def _missing_identifiers_count(results: list[dict[str, object]]) -> int:
+    missing_count = 0
+    for item in results:
+        has_name = bool(str(item.get("title") or item.get("name") or "").strip())
+        has_url = bool(str(item.get("url") or item.get("source_url") or "").strip())
+        if not has_name and not has_url:
+            missing_count += 1
+    return missing_count
+
+
+def _is_insufficient_result_set(results: list[dict[str, object]]) -> tuple[bool, str]:
+    if not results:
+        return True, "zero_results"
+    if len(results) < MAX_RESULTS_PER_TASK:
+        return True, "insufficient_results"
+    if _missing_identifiers_count(results) == len(results):
+        return True, "insufficient_results"
+    return False, ""
+
+
+def _remove_specific_constraints(query: str) -> str:
+    normalized = re.sub(
+        r"\b(with\s+)?(opening\s*hours?|price\s*range|cost\s*range|budget)\b",
+        "",
+        query,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(r"\s+", " ", normalized).strip(" ,")
+    return normalized or query.strip()
+
+
+def _fallback_broadened_query(task_name: str, destination: str) -> str:
+    lowered_task = task_name.lower()
+    if "food" in lowered_task or "restaurant" in lowered_task or "dining" in lowered_task:
+        return f"best restaurants in and around {destination}".strip()
+    if "activity" in lowered_task or "attraction" in lowered_task or "things" in lowered_task:
+        return f"top things to do in and around {destination}".strip()
+    return f"popular places in and around {destination}".strip()
+
+
+def _broaden_query(query: str, task_name: str, destination: str) -> str:
+    cleaned_query = _remove_specific_constraints(query)
+    if cleaned_query and cleaned_query != query and "around" not in cleaned_query.lower():
+        return f"{cleaned_query} in and around {destination}".strip()
+
+    if "around" not in cleaned_query.lower() and destination.strip():
+        return f"{cleaned_query} in and around {destination}".strip()
+
+    return _fallback_broadened_query(task_name=task_name, destination=destination)
+
+
 async def researcher_node(
     state: AgentState,
     *,
@@ -40,8 +92,10 @@ async def researcher_node(
 
     tool = search_tool or TavilySearchTool()
     current_calls = int(state.get("tavily_calls_made", 0))
+    events = list(state.get("events", []))
     task_results = dict(state.get("task_results", {}))
     tasks = state.get("tasks", [])
+    destination = str(state.get("destination", "")).strip()
 
     for task in tasks:
         if current_calls >= MAX_TAVILY_CALLS:
@@ -54,33 +108,75 @@ async def researcher_node(
             continue
 
         results_for_task: list[dict[str, object]] = []
-        max_iterations = min(1, MAX_SEARCH_ITERATIONS_PER_TASK)
-        for _ in range(max_iterations):
+        best_results_for_task: list[dict[str, object]] = []
+        attempted_queries: set[str] = set()
+        current_query = query
+
+        for _ in range(MAX_SEARCH_ITERATIONS_PER_TASK):
             if current_calls >= MAX_TAVILY_CALLS:
                 break
 
+            if current_query in attempted_queries:
+                break
+            attempted_queries.add(current_query)
+
+            previous_tool_calls = int(getattr(tool, "calls_made", 0))
+
             try:
-                results = await tool.search(query, max_results=MAX_RESULTS_PER_TASK)
+                results = await tool.search(current_query, max_results=MAX_RESULTS_PER_TASK)
             except TavilyCallLimitExceededError:
                 break
             except TavilyUnavailableError:
-                return {
-                    **state,
-                    "task_results": task_results,
-                    "tavily_calls_made": current_calls,
-                    "error_event": _build_tavily_unavailable_event(task_name),
-                }
+                latest_tool_calls = int(getattr(tool, "calls_made", previous_tool_calls))
+                call_increment = latest_tool_calls - previous_tool_calls
+                if call_increment <= 0:
+                    call_increment = 1
+                current_calls = min(MAX_TAVILY_CALLS, current_calls + call_increment)
+                # Degrade this task gracefully and continue with remaining tasks.
+                results_for_task = []
+                break
 
-            current_calls += 1
+            latest_tool_calls = int(getattr(tool, "calls_made", previous_tool_calls + 1))
+            call_increment = latest_tool_calls - previous_tool_calls
+            if call_increment <= 0:
+                call_increment = 1
+            current_calls = min(MAX_TAVILY_CALLS, current_calls + call_increment)
+
             results_for_task = [
                 item for item in results[:MAX_RESULTS_PER_TASK] if isinstance(item, dict)
             ]
-            break
 
-        task_results[task_name] = results_for_task
+            if len(results_for_task) > len(best_results_for_task):
+                best_results_for_task = results_for_task
+
+            is_insufficient, reason = _is_insufficient_result_set(results_for_task)
+            if not is_insufficient:
+                break
+
+            broadened_query = _broaden_query(
+                query=current_query,
+                task_name=task_name,
+                destination=destination,
+            )
+            if not broadened_query or broadened_query == current_query:
+                break
+
+            event = SelfCorrectionEvent(
+                timestamp=datetime.now(UTC).isoformat(),
+                data=SelfCorrectionData(
+                    original_query=current_query,
+                    broadened_query=broadened_query,
+                    reason=reason,
+                ),
+            )
+            events.append(event.to_payload())
+            current_query = broadened_query
+
+        task_results[task_name] = best_results_for_task or results_for_task
 
     return {
         **state,
+        "events": events,
         "task_results": task_results,
         "tavily_calls_made": current_calls,
     }

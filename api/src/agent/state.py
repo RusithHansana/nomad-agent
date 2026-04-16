@@ -25,6 +25,7 @@ class AgentState(TypedDict):
     interest_categories: list[str]
     tasks: list[ResearchTask]
     tavily_calls_made: int
+    events: list[dict[str, object]]
     task_results: dict[str, list[dict[str, object]]]
     error_event: dict[str, object] | None
     itinerary_response: dict[str, object] | None

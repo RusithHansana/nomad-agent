@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from src.agent.state import AgentState
 from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 
+HOURS_UNVERIFIED_NOTE = "⚠️ Hours unverified — recommend calling ahead"
+
 
 def _as_float(value: object, default: float = 0.0) -> float:
     try:
@@ -53,7 +55,12 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     has_structured_details = bool(
         address != "Address unavailable" or opening_hours or rating_value is not None
     )
-    is_verified = bool(source_url_str and has_structured_details)
+
+    hours_verified = opening_hours is not None
+    is_verified = bool(source_url_str and has_structured_details and hours_verified)
+    verification_note = None if is_verified else "Limited source confidence"
+    if not hours_verified:
+        verification_note = HOURS_UNVERIFIED_NOTE
 
     return Venue(
         name=name,
@@ -65,7 +72,7 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
         price_level=price_level,
         source_url=source_url_str,
         is_verified=is_verified,
-        verification_note=None if is_verified else "Limited source confidence",
+        verification_note=verification_note,
     )
 
 

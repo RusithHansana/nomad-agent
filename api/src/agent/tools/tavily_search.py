@@ -43,10 +43,14 @@ class TavilySearchTool:
         *,
         client: Any | None = None,
         max_total_calls: int = MAX_TAVILY_CALLS,
+        retry_attempts: int = 1,
+        retry_delay_seconds: float = 0.05,
     ) -> None:
         self._client = client
         self._max_total_calls = max_total_calls
         self._calls_made = 0
+        self._retry_attempts = max(0, retry_attempts)
+        self._retry_delay_seconds = max(0.0, retry_delay_seconds)
 
     @property
     def calls_made(self) -> int:
@@ -69,9 +73,6 @@ class TavilySearchTool:
         return self._client
 
     async def search(self, query: str, *, max_results: int) -> Sequence[dict[str, Any]]:
-        if self._calls_made >= self._max_total_calls:
-            raise TavilyCallLimitExceededError("Maximum Tavily call budget reached")
-
         requested_results = max(1, min(max_results, MAX_RESULTS_PER_TASK))
         client = self._get_client()
 
@@ -83,12 +84,30 @@ class TavilySearchTool:
                 include_raw_content=True,
             )
 
-        try:
-            response = await asyncio.to_thread(_run_search)
-        except Exception as exc:
-            raise TavilyUnavailableError("Tavily search failed") from exc
+        response: dict[str, Any] | None = None
+        attempts_left = self._retry_attempts + 1
+        last_error: Exception | None = None
 
-        self._calls_made += 1
+        while attempts_left > 0:
+            if self._calls_made >= self._max_total_calls:
+                raise TavilyCallLimitExceededError("Maximum Tavily call budget reached")
+
+            try:
+                response = await asyncio.to_thread(_run_search)
+                self._calls_made += 1
+                break
+            except Exception as exc:
+                self._calls_made += 1
+                last_error = exc
+                attempts_left -= 1
+                if attempts_left <= 0:
+                    raise TavilyUnavailableError("Tavily search failed") from exc
+                if self._retry_delay_seconds > 0:
+                    await asyncio.sleep(self._retry_delay_seconds)
+
+        if response is None:
+            raise TavilyUnavailableError("Tavily search failed") from last_error
+
         raw_results = response.get("results", [])
         if not isinstance(raw_results, list):
             return []
