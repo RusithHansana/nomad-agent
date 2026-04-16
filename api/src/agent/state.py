@@ -27,3 +27,4 @@ class AgentState(TypedDict):
     tavily_calls_made: int
     task_results: dict[str, list[dict[str, object]]]
     error_event: dict[str, object] | None
+    itinerary_response: dict[str, object] | None
