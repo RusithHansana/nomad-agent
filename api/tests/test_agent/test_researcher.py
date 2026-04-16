@@ -1,9 +1,7 @@
 import pytest
 
 from src.agent.nodes.researcher import researcher_node
-from src.agent.state import MAX_RESULTS_PER_TASK
-from src.agent.state import MAX_SEARCH_ITERATIONS_PER_TASK
-from src.agent.state import MAX_TAVILY_CALLS
+from src.agent.state import MAX_RESULTS_PER_TASK, MAX_SEARCH_ITERATIONS_PER_TASK, MAX_TAVILY_CALLS
 
 
 class FakeSearchTool:

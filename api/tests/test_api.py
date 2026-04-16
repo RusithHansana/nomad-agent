@@ -2,9 +2,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.main import create_app
-from src.services.generation import GenerationTimeoutError
-from src.services.generation import InvalidPromptError
-from src.services.generation import TavilyUnavailableServiceError
+from src.services.generation import (
+    GenerationTimeoutError,
+    InvalidPromptError,
+    TavilyUnavailableServiceError,
+)
 
 
 @pytest.mark.asyncio
@@ -94,7 +96,9 @@ async def test_generate_maps_invalid_prompt_to_http_400(monkeypatch: pytest.Monk
 
 
 @pytest.mark.asyncio
-async def test_generate_maps_tavily_unavailable_to_http_503(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_generate_maps_tavily_unavailable_to_http_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("APP_API_KEY", "test-key")
 
     async def _fake_generate_itinerary_response(_: str) -> dict[str, object]:

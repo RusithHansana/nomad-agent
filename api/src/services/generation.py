@@ -63,7 +63,9 @@ async def generate_itinerary_response(prompt: str) -> dict[str, object]:
                 raise TavilyUnavailableServiceError(message)
             raise GenerationPipelineError(message)
 
-    itinerary_payload = final_state.get("itinerary_response") if isinstance(final_state, dict) else None
+    itinerary_payload = (
+        final_state.get("itinerary_response") if isinstance(final_state, dict) else None
+    )
     if not isinstance(itinerary_payload, dict):
         raise GenerationPipelineError("Pipeline did not produce an itinerary")
 

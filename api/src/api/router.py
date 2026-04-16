@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import validate_api_key
 from src.models.request import PromptRequest
-from src.services.generation import GenerationPipelineError
-from src.services.generation import GenerationTimeoutError
-from src.services.generation import InvalidPromptError
-from src.services.generation import TavilyUnavailableServiceError
-from src.services.generation import generate_itinerary_response
+from src.services.generation import (
+    GenerationPipelineError,
+    GenerationTimeoutError,
+    InvalidPromptError,
+    TavilyUnavailableServiceError,
+    generate_itinerary_response,
+)
 
 router = APIRouter(prefix="/api/v1")
 

@@ -6,8 +6,7 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
-from src.agent.state import MAX_RESULTS_PER_TASK
-from src.agent.state import MAX_TAVILY_CALLS
+from src.agent.state import MAX_RESULTS_PER_TASK, MAX_TAVILY_CALLS
 from src.config import get_settings
 
 

@@ -3,15 +3,18 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from src.agent.state import AgentState
-from src.agent.state import MAX_RESULTS_PER_TASK
-from src.agent.state import MAX_SEARCH_ITERATIONS_PER_TASK
-from src.agent.state import MAX_TAVILY_CALLS
-from src.agent.tools.tavily_search import TavilyCallLimitExceededError
-from src.agent.tools.tavily_search import TavilySearchTool
-from src.agent.tools.tavily_search import TavilyUnavailableError
-from src.models.events import ErrorData
-from src.models.events import ErrorEvent
+from src.agent.state import (
+    MAX_RESULTS_PER_TASK,
+    MAX_SEARCH_ITERATIONS_PER_TASK,
+    MAX_TAVILY_CALLS,
+    AgentState,
+)
+from src.agent.tools.tavily_search import (
+    TavilyCallLimitExceededError,
+    TavilySearchTool,
+    TavilyUnavailableError,
+)
+from src.models.events import ErrorData, ErrorEvent
 
 
 def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
@@ -70,9 +73,7 @@ async def researcher_node(
 
             current_calls += 1
             results_for_task = [
-                item
-                for item in results[:MAX_RESULTS_PER_TASK]
-                if isinstance(item, dict)
+                item for item in results[:MAX_RESULTS_PER_TASK] if isinstance(item, dict)
             ]
             break
 

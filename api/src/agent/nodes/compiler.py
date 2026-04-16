@@ -3,10 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from src.agent.state import AgentState
-from src.models.response import CostSummary
-from src.models.response import DayPlan
-from src.models.response import ItineraryResponse
-from src.models.response import Venue
+from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 
 
 def _as_float(value: object, default: float = 0.0) -> float:
@@ -35,13 +32,16 @@ def _extract_opening_hours(raw: dict[str, object]) -> list[str] | None:
 
 def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     name = str(raw.get("name") or raw.get("title") or "Unknown Venue").strip() or "Unknown Venue"
-    address = str(
-        raw.get("address")
-        or raw.get("location")
-        or raw.get("raw_content")
-        or raw.get("content")
+    address = (
+        str(
+            raw.get("address")
+            or raw.get("location")
+            or raw.get("raw_content")
+            or raw.get("content")
+            or "Address unavailable"
+        ).strip()
         or "Address unavailable"
-    ).strip() or "Address unavailable"
+    )
     source_url = raw.get("source_url") or raw.get("url")
     source_url_str = str(source_url).strip() if source_url else None
 
@@ -50,7 +50,9 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     rating_value = rating if rating > 0 else None
     price_level = _as_int(raw.get("price_level") or raw.get("price"))
 
-    has_structured_details = bool(address != "Address unavailable" or opening_hours or rating_value is not None)
+    has_structured_details = bool(
+        address != "Address unavailable" or opening_hours or rating_value is not None
+    )
     is_verified = bool(source_url_str and has_structured_details)
 
     return Venue(
@@ -80,7 +82,9 @@ async def compiler_node(state: AgentState) -> AgentState:
     if state.get("error_event") is not None:
         return {**state, "itinerary_response": None}
 
-    destination = str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
+    destination = (
+        str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
+    )
     duration_days = max(1, int(state.get("duration_days", 1)))
 
     venues: list[Venue] = []

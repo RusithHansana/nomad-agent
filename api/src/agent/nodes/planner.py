@@ -3,8 +3,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
-from src.agent.state import AgentState
-from src.agent.state import MAX_TASKS
+from src.agent.state import MAX_TASKS, AgentState
 from src.models.events import ErrorData, ErrorEvent
 
 DEFAULT_INTEREST_CATEGORIES = ["food", "culture", "nature"]
@@ -12,8 +11,12 @@ DEFAULT_INTEREST_CATEGORIES = ["food", "culture", "nature"]
 UNSAFE_PROMPT_PATTERNS = [
     re.compile(r"\b(make|build|create)\s+(?:a\s+)?(?:bomb|explosive|weapon)\b", re.IGNORECASE),
     re.compile(r"\b(how\s+to\s+kill|murder|assassinat(e|ion)|violent\s+attack)\b", re.IGNORECASE),
-    re.compile(r"\b(buy\s+illegal\s+drugs?|traffic\s+drugs?|fraud\s+scheme|steal\b)\b", re.IGNORECASE),
-    re.compile(r"\b(explicit\s+sexual|sexual\s+services|hate\s+crime|harass\s+someone)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(buy\s+illegal\s+drugs?|traffic\s+drugs?|fraud\s+scheme|steal\b)\b", re.IGNORECASE
+    ),
+    re.compile(
+        r"\b(explicit\s+sexual|sexual\s+services|hate\s+crime|harass\s+someone)\b", re.IGNORECASE
+    ),
 ]
 
 INTEREST_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -45,7 +48,10 @@ def _build_invalid_prompt_event() -> dict[str, object]:
         timestamp=datetime.now(UTC).isoformat(),
         data=ErrorData(
             code="INVALID_PROMPT",
-            message="This request can't be processed. Please provide a safe travel-planning prompt.",
+            message=(
+                "This request can't be processed. Please provide a safe "
+                "travel-planning prompt."
+            ),
             details={},
         ),
     )
