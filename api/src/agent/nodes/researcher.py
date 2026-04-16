@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from src.agent.state import AgentState
@@ -9,6 +10,20 @@ from src.agent.state import MAX_TAVILY_CALLS
 from src.agent.tools.tavily_search import TavilyCallLimitExceededError
 from src.agent.tools.tavily_search import TavilySearchTool
 from src.agent.tools.tavily_search import TavilyUnavailableError
+from src.models.events import ErrorData
+from src.models.events import ErrorEvent
+
+
+def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
+    event = ErrorEvent(
+        timestamp=datetime.now(UTC).isoformat(),
+        data=ErrorData(
+            code="TAVILY_UNAVAILABLE",
+            message="Research services are temporarily unavailable. Please try again shortly.",
+            details={"task": task_name},
+        ),
+    )
+    return event.to_payload()
 
 
 async def researcher_node(
@@ -43,8 +58,15 @@ async def researcher_node(
 
             try:
                 results = await tool.search(query, max_results=MAX_RESULTS_PER_TASK)
-            except (TavilyCallLimitExceededError, TavilyUnavailableError):
-                results = []
+            except TavilyCallLimitExceededError:
+                break
+            except TavilyUnavailableError:
+                return {
+                    **state,
+                    "task_results": task_results,
+                    "tavily_calls_made": current_calls,
+                    "error_event": _build_tavily_unavailable_event(task_name),
+                }
 
             current_calls += 1
             results_for_task = [
