@@ -17,6 +17,17 @@ class FakeTavilyClient:
         return self.payload
 
 
+class FlakyFakeTavilyClient:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def search(self, query: str, **kwargs: object) -> dict[str, object]:
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("transient")
+        return {"results": [{"title": "Recovered"}]}
+
+
 @pytest.mark.asyncio
 async def test_tavily_search_enforces_top_result_limit() -> None:
     client = FakeTavilyClient(payload={"results": [{"title": "A"}]})
@@ -38,6 +49,18 @@ async def test_tavily_search_enforces_total_call_budget() -> None:
 
     with pytest.raises(TavilyCallLimitExceededError):
         await tool.search("query-over-budget", max_results=1)
+
+
+@pytest.mark.asyncio
+async def test_tavily_search_retries_once_on_failure() -> None:
+    client = FlakyFakeTavilyClient()
+    tool = TavilySearchTool(client=client, retry_attempts=1, retry_delay_seconds=0)
+
+    results = await tool.search("query", max_results=1)
+
+    assert client.calls == 2
+    assert tool.calls_made == 2
+    assert results[0]["title"] == "Recovered"
 
 
 @pytest.mark.asyncio
