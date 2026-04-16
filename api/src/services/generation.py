@@ -4,7 +4,6 @@ import asyncio
 
 from src.agent.graph import build_graph
 from src.agent.state import GENERATION_TIMEOUT_SECONDS
-from src.config import get_settings
 from src.models.response import ItineraryResponse
 
 
@@ -26,10 +25,6 @@ class GenerationPipelineError(RuntimeError):
 
 async def generate_itinerary_response(prompt: str) -> dict[str, object]:
     """Run the agent pipeline and return a validated itinerary payload."""
-    settings = get_settings()
-    if not settings.tavily_api_key.strip():
-        raise TavilyUnavailableServiceError("Tavily API key is not configured")
-
     graph = build_graph()
     initial_state: dict[str, object] = {
         "prompt": prompt,
