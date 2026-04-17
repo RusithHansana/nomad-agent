@@ -101,7 +101,8 @@ async def compiler_node(state: AgentState) -> AgentState:
         str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
     )
     duration_days = max(1, int(state.get("duration_days", 1)))
-    events = list(state.get("events", []))
+    raw_events = state.get("events")
+    events = list(raw_events) if isinstance(raw_events, list) else []
     events.append(
         ThoughtLogEvent(
             timestamp=datetime.now(UTC).isoformat(),

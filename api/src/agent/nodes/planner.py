@@ -49,8 +49,7 @@ def _build_invalid_prompt_event() -> dict[str, object]:
         data=ErrorData(
             code="INVALID_PROMPT",
             message=(
-                "This request can't be processed. Please provide a safe "
-                "travel-planning prompt."
+                "This request can't be processed. Please provide a safe travel-planning prompt."
             ),
             details={},
         ),
@@ -156,7 +155,8 @@ async def planner_node(state: AgentState) -> AgentState:
     duration_days = _extract_duration_days(prompt)
     interest_categories = _extract_interest_categories(prompt)
     tasks = _build_research_tasks(destination, interest_categories)
-    events = list(state.get("events", []))
+    raw_events = state.get("events")
+    events = list(raw_events) if isinstance(raw_events, list) else []
     events.append(
         ThoughtLogEvent(
             timestamp=datetime.now(UTC).isoformat(),

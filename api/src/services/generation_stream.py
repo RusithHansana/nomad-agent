@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from datetime import UTC, datetime
 from typing import AsyncIterator
@@ -73,13 +74,15 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
     )
     yield start_event.to_payload()
 
-    graph = build_graph()
     seen_event_count = 0
     final_state: dict[str, object] | None = None
     started_at = time.monotonic()
-    stream = graph.astream(initial_state, stream_mode="values")
+    stream = None
 
     try:
+        graph = build_graph()
+        stream = graph.astream(initial_state, stream_mode="values")
+
         while True:
             elapsed = time.monotonic() - started_at
             remaining_timeout = GENERATION_TIMEOUT_SECONDS - elapsed
@@ -100,12 +103,19 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
             if not isinstance(event_payloads, list):
                 continue
 
-            new_payloads = event_payloads[seen_event_count:]
-            for payload in new_payloads:
+            if len(event_payloads) < seen_event_count:
+                seen_event_count = 0
+
+            for payload in event_payloads[seen_event_count:]:
+                seen_event_count += 1
                 if not isinstance(payload, dict):
                     continue
-                yield SSEEvent.parse_payload(payload).to_payload()
-            seen_event_count += len(new_payloads)
+                try:
+                    yield SSEEvent.parse_payload(payload).to_payload()
+                except Exception:
+                    continue
+    except asyncio.CancelledError:
+        raise
     except TimeoutError:
         yield _error_payload(
             code="GENERATION_TIMEOUT",
@@ -119,9 +129,10 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
         )
         return
     finally:
-        aclose = getattr(stream, "aclose", None)
+        aclose = getattr(stream, "aclose", None) if stream is not None else None
         if callable(aclose):
-            await aclose()
+            with contextlib.suppress(Exception):
+                await aclose()
 
     if final_state is None:
         yield _error_payload(
@@ -132,7 +143,13 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
 
     error_event = final_state.get("error_event")
     if isinstance(error_event, dict):
-        yield SSEEvent.parse_payload(error_event).to_payload()
+        try:
+            yield SSEEvent.parse_payload(error_event).to_payload()
+        except Exception:
+            yield _error_payload(
+                code="GENERATION_FAILED",
+                message="Generation produced an invalid error payload.",
+            )
         return
 
     itinerary_payload = final_state.get("itinerary_response")
