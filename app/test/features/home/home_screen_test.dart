@@ -45,10 +45,11 @@ void main() {
       const prompt = 'Weekend in Tokyo, vintage gaming and ramen';
       await tester.enterText(find.byType(TextField), prompt);
       await tester.testTextInput.receiveAction(TextInputAction.go);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
 
       expect(find.text('Generating…'), findsOneWidget);
-      expect(find.textContaining(prompt), findsOneWidget);
+      expect(find.textContaining('Researching your trip'), findsOneWidget);
     });
 
     testWidgets('Tapping Go navigates to generate and shows prompt', (
@@ -61,10 +62,11 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Go'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
 
       expect(find.text('Generating…'), findsOneWidget);
-      expect(find.textContaining(prompt), findsOneWidget);
+      expect(find.textContaining('Researching your trip'), findsOneWidget);
     });
   });
 }

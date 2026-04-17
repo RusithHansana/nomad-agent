@@ -25,6 +25,7 @@ class AppColors {
   static const Color warning = Color(0xFFD49A6A);
   static const Color error = Color(0xFFB55B52);
   static const Color thoughtLog = Color(0xFF6B8F71);
+  static const Color thoughtLogBackgroundLight = Color(0xFFF0F4F0);
 
   // ── Dark mode tokens ───────────────────────────────────────────────
 
@@ -45,4 +46,5 @@ class AppColors {
   static const Color darkWarning = Color(0xFFD49A6A);
   static const Color darkError = Color(0xFFCF7B73);
   static const Color darkThoughtLog = Color(0xFF6B8F71);
+  static const Color thoughtLogBackgroundDark = Color(0xFF1E2A1E);
 }
