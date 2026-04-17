@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from src.agent.state import AgentState
+from src.models.events import ThoughtLogData, ThoughtLogEvent
 from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 
 HOURS_UNVERIFIED_NOTE = "⚠️ Hours unverified — recommend calling ahead"
@@ -58,7 +59,9 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
 
     hours_verified = opening_hours is not None
     force_unverified = bool(raw.get("_degraded_unverified"))
-    is_verified = bool(source_url_str and has_structured_details and hours_verified and not force_unverified)
+    is_verified = bool(
+        source_url_str and has_structured_details and hours_verified and not force_unverified
+    )
 
     if not hours_verified:
         verification_note = HOURS_UNVERIFIED_NOTE
@@ -98,6 +101,17 @@ async def compiler_node(state: AgentState) -> AgentState:
         str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
     )
     duration_days = max(1, int(state.get("duration_days", 1)))
+    raw_events = state.get("events")
+    events = list(raw_events) if isinstance(raw_events, list) else []
+    events.append(
+        ThoughtLogEvent(
+            timestamp=datetime.now(UTC).isoformat(),
+            data=ThoughtLogData(
+                message="Compiling itinerary",
+                step="compiler",
+            ),
+        ).to_payload()
+    )
 
     venues: list[Venue] = []
     for task_entries in state.get("task_results", {}).values():
@@ -113,8 +127,19 @@ async def compiler_node(state: AgentState) -> AgentState:
         cost_summary=CostSummary(total=0.0),
         generated_at=datetime.now(UTC).isoformat(),
     )
+    events.append(
+        ThoughtLogEvent(
+            timestamp=datetime.now(UTC).isoformat(),
+            data=ThoughtLogData(
+                message="Itinerary complete",
+                icon="🎉",
+                step="compiler",
+            ),
+        ).to_payload()
+    )
 
     return {
         **state,
+        "events": events,
         "itinerary_response": itinerary.model_dump(exclude_none=True),
     }
