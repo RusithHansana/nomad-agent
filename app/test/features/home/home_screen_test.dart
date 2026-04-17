@@ -45,10 +45,14 @@ void main() {
       const prompt = 'Weekend in Tokyo, vintage gaming and ramen';
       await tester.enterText(find.byType(TextField), prompt);
       await tester.testTextInput.receiveAction(TextInputAction.go);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await _pumpUntilFound(
+        tester,
+        find.textContaining('Researching your trip'),
+      );
 
       expect(find.text('Generating…'), findsOneWidget);
-      expect(find.textContaining(prompt), findsOneWidget);
+      expect(find.textContaining('Researching your trip'), findsOneWidget);
     });
 
     testWidgets('Tapping Go navigates to generate and shows prompt', (
@@ -61,10 +65,32 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Go'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await _pumpUntilFound(
+        tester,
+        find.textContaining('Researching your trip'),
+      );
 
       expect(find.text('Generating…'), findsOneWidget);
-      expect(find.textContaining(prompt), findsOneWidget);
+      expect(find.textContaining('Researching your trip'), findsOneWidget);
     });
   });
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 2),
+  Duration step = const Duration(milliseconds: 50),
+}) async {
+  var elapsed = Duration.zero;
+  while (elapsed <= timeout) {
+    if (finder.evaluate().isNotEmpty) {
+      return;
+    }
+    await tester.pump(step);
+    elapsed += step;
+  }
+
+  fail('Timed out waiting for finder: $finder');
 }
