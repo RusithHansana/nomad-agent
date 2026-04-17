@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from __future__ import annotations
+
+import json
+from typing import AsyncIterator
+
+from fastapi import APIRouter, Depends
+from sse_starlette import EventSourceResponse
 
 from src.api.dependencies import validate_api_key
 from src.models.request import PromptRequest
-from src.services.generation import (
-    GenerationPipelineError,
-    GenerationTimeoutError,
-    InvalidPromptError,
-    TavilyUnavailableServiceError,
-    generate_itinerary_response,
-)
+from src.services.generation_stream import stream_itinerary_events
 
 router = APIRouter(prefix="/api/v1")
 
@@ -19,42 +19,19 @@ async def health_check() -> dict[str, str]:
 
 
 @router.post("/generate", dependencies=[Depends(validate_api_key)])
-async def generate_itinerary(request: PromptRequest) -> dict[str, object]:
-    try:
-        return await generate_itinerary_response(request.prompt)
-    except InvalidPromptError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": str(exc) or "Prompt is not allowed",
-                "code": "INVALID_PROMPT",
-                "details": {},
-            },
-        ) from exc
-    except TavilyUnavailableServiceError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": str(exc) or "Research service unavailable",
-                "code": "TAVILY_UNAVAILABLE",
-                "details": {},
-            },
-        ) from exc
-    except GenerationTimeoutError as exc:
-        raise HTTPException(
-            status_code=504,
-            detail={
-                "error": str(exc) or "Generation timed out",
-                "code": "GENERATION_TIMEOUT",
-                "details": {},
-            },
-        ) from exc
-    except GenerationPipelineError as exc:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": str(exc) or "Generation failed",
-                "code": "GENERATION_FAILED",
-                "details": {},
-            },
-        ) from exc
+async def generate_itinerary(request: PromptRequest) -> EventSourceResponse:
+    async def event_stream() -> AsyncIterator[dict[str, str]]:
+        async for payload in stream_itinerary_events(request.prompt):
+            event_type = str(payload.get("event_type", "message"))
+            yield {
+                "event": event_type,
+                "data": json.dumps(payload, ensure_ascii=False),
+            }
+
+    return EventSourceResponse(
+        event_stream(),
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

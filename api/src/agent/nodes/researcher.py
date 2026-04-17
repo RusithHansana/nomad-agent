@@ -15,7 +15,14 @@ from src.agent.tools.tavily_search import (
     TavilySearchTool,
     TavilyUnavailableError,
 )
-from src.models.events import ErrorData, ErrorEvent, SelfCorrectionData, SelfCorrectionEvent
+from src.models.events import (
+    ErrorData,
+    ErrorEvent,
+    SelfCorrectionData,
+    SelfCorrectionEvent,
+    ThoughtLogData,
+    ThoughtLogEvent,
+)
 
 
 def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
@@ -136,6 +143,16 @@ async def researcher_node(
                 break
             attempted_queries.add(current_query)
 
+            events.append(
+                ThoughtLogEvent(
+                    timestamp=datetime.now(UTC).isoformat(),
+                    data=ThoughtLogData(
+                        message=f"Searching {task_name}",
+                        step="researcher",
+                    ),
+                ).to_payload()
+            )
+
             previous_tool_calls = _safe_int(getattr(tool, "calls_made", 0), 0)
 
             try:
@@ -198,6 +215,15 @@ async def researcher_node(
             current_query = broadened_query
 
         task_results[task_name] = best_results_for_task or results_for_task
+        events.append(
+            ThoughtLogEvent(
+                timestamp=datetime.now(UTC).isoformat(),
+                data=ThoughtLogData(
+                    message=f"Found {len(task_results[task_name])} results for {task_name}",
+                    step="researcher",
+                ),
+            ).to_payload()
+        )
 
     return {
         **state,

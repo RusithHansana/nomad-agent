@@ -4,7 +4,7 @@ import re
 from datetime import UTC, datetime
 
 from src.agent.state import MAX_TASKS, AgentState
-from src.models.events import ErrorData, ErrorEvent
+from src.models.events import ErrorData, ErrorEvent, ThoughtLogData, ThoughtLogEvent
 
 DEFAULT_INTEREST_CATEGORIES = ["food", "culture", "nature"]
 
@@ -156,6 +156,16 @@ async def planner_node(state: AgentState) -> AgentState:
     duration_days = _extract_duration_days(prompt)
     interest_categories = _extract_interest_categories(prompt)
     tasks = _build_research_tasks(destination, interest_categories)
+    events = list(state.get("events", []))
+    events.append(
+        ThoughtLogEvent(
+            timestamp=datetime.now(UTC).isoformat(),
+            data=ThoughtLogData(
+                message="Parsed prompt and planned tasks",
+                step="planner",
+            ),
+        ).to_payload()
+    )
 
     return {
         **state,
@@ -163,6 +173,7 @@ async def planner_node(state: AgentState) -> AgentState:
         "duration_days": duration_days,
         "interest_categories": interest_categories,
         "tasks": tasks,
+        "events": events,
         "task_results": state.get("task_results", {}),
         "error_event": None,
     }

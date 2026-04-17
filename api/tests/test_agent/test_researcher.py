@@ -132,8 +132,9 @@ async def test_researcher_self_corrects_and_emits_event_on_empty_results() -> No
     assert len(search_tool.calls) == 2
     assert result["task_results"]["Things To Do"]
     assert result["events"]
-    event = result["events"][0]
-    assert event["event_type"] == "self_correction"
+    event = next(
+        item for item in result["events"] if item.get("event_type") == "self_correction"
+    )
     assert event["data"]["original_query"] == "hidden waterfalls with opening hours"
     assert event["data"]["broadened_query"] != event["data"]["original_query"]
     assert event["data"]["reason"] == "zero_results"
