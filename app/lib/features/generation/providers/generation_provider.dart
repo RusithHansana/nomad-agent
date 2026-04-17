@@ -130,8 +130,14 @@ Stream<SSEEvent> openGenerationStream({
     }
 
     await for (final message in parseSseMessages(responseBody.stream)) {
-      final decoded = jsonDecode(message);
-      if (decoded is! Map<String, Object?>) {
+      final Map<String, Object?> decoded;
+      try {
+        final rawDecoded = jsonDecode(message);
+        if (rawDecoded is! Map<String, Object?>) {
+          continue;
+        }
+        decoded = rawDecoded;
+      } on FormatException {
         continue;
       }
       yield SSEEvent.fromJson(decoded);
@@ -167,6 +173,7 @@ class GenerationController
   CancelToken? _cancelToken;
 
   bool _isTerminal = false;
+  bool _dropHandledForCurrentSubscription = false;
 
   @override
   GenerationViewState build(String prompt) {
@@ -227,6 +234,7 @@ class GenerationController
     _cancelToken?.cancel();
     _subscription?.cancel();
     _cancelToken = CancelToken();
+    _dropHandledForCurrentSubscription = false;
 
     final streamFactory = ref.read(generationStreamFactoryProvider);
     final stream = streamFactory(arg, _cancelToken!);
@@ -234,9 +242,19 @@ class GenerationController
     _subscription = stream.listen(
       _handleEvent,
       onError: (Object error, StackTrace stackTrace) {
+        if (_dropHandledForCurrentSubscription) {
+          return;
+        }
+        _dropHandledForCurrentSubscription = true;
         _handleDroppedStream();
       },
-      onDone: _handleDroppedStream,
+      onDone: () {
+        if (_dropHandledForCurrentSubscription) {
+          return;
+        }
+        _dropHandledForCurrentSubscription = true;
+        _handleDroppedStream();
+      },
       cancelOnError: false,
     );
   }
@@ -285,6 +303,7 @@ class GenerationController
       _isTerminal = true;
       _elapsedTimer?.cancel();
       _coldStartTimer?.cancel();
+      _cancelActiveStream();
       state = state.copyWith(
         phase: GenerationPhase.complete,
         itineraryId: _buildItineraryId(event),
@@ -301,6 +320,7 @@ class GenerationController
       _isTerminal = true;
       _elapsedTimer?.cancel();
       _coldStartTimer?.cancel();
+      _cancelActiveStream();
       state = state.copyWith(
         phase: GenerationPhase.error,
         errorMessage: event.message,
@@ -323,12 +343,20 @@ class GenerationController
     _isTerminal = true;
     _elapsedTimer?.cancel();
     _coldStartTimer?.cancel();
+    _cancelActiveStream();
     state = state.copyWith(
       phase: GenerationPhase.error,
       errorMessage:
           'Connection lost while generating your itinerary. Please try again.',
       showColdStartOverlay: false,
     );
+  }
+
+  void _cancelActiveStream() {
+    _cancelToken?.cancel();
+    _subscription?.cancel();
+    _cancelToken = null;
+    _subscription = null;
   }
 
   void _appendEntry({

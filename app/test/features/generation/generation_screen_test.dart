@@ -19,6 +19,7 @@ void main() {
     ) async {
       const prompt = 'Trip in Tokyo';
       final streamController = StreamController<SSEEvent>();
+      addTearDown(streamController.close);
 
       await tester.pumpWidget(
         _buildHarness(
@@ -58,6 +59,7 @@ void main() {
     ) async {
       const prompt = 'Trip in Lisbon';
       final streamController = StreamController<SSEEvent>();
+      addTearDown(streamController.close);
 
       await tester.pumpWidget(
         _buildHarness(
@@ -95,6 +97,7 @@ void main() {
     testWidgets('renders thought log entry icon and message', (tester) async {
       const prompt = 'Trip in Kyoto';
       final streamController = StreamController<SSEEvent>();
+      addTearDown(streamController.close);
 
       await tester.pumpWidget(
         _buildHarness(

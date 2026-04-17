@@ -55,6 +55,9 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
       final previousLength = previous?.entries.length ?? 0;
       if (next.entries.length > previousLength) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
           _scrollToBottom();
         });
       }
@@ -64,6 +67,9 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
           next.phase == GenerationPhase.complete;
       if (completedNow && next.itineraryId != null && context.mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) {
+            return;
+          }
           context.go(AppRoutes.itineraryDetail(next.itineraryId!));
         });
       }

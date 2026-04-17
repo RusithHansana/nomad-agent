@@ -46,7 +46,10 @@ void main() {
       await tester.enterText(find.byType(TextField), prompt);
       await tester.testTextInput.receiveAction(TextInputAction.go);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 120));
+      await _pumpUntilFound(
+        tester,
+        find.textContaining('Researching your trip'),
+      );
 
       expect(find.text('Generating…'), findsOneWidget);
       expect(find.textContaining('Researching your trip'), findsOneWidget);
@@ -63,10 +66,31 @@ void main() {
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Go'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 120));
+      await _pumpUntilFound(
+        tester,
+        find.textContaining('Researching your trip'),
+      );
 
       expect(find.text('Generating…'), findsOneWidget);
       expect(find.textContaining('Researching your trip'), findsOneWidget);
     });
   });
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 2),
+  Duration step = const Duration(milliseconds: 50),
+}) async {
+  var elapsed = Duration.zero;
+  while (elapsed <= timeout) {
+    if (finder.evaluate().isNotEmpty) {
+      return;
+    }
+    await tester.pump(step);
+    elapsed += step;
+  }
+
+  fail('Timed out waiting for finder: $finder');
 }

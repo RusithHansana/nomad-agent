@@ -4,54 +4,55 @@ import 'dart:convert';
 ///
 /// Handles chunk boundaries, blank-line message delimiters, and multi-line
 /// data fields concatenated with newlines.
-Stream<String> parseSseMessages(Stream<List<int>> byteStream) async* {
-  final decoder = utf8.decoder;
-  var buffer = '';
+Stream<String> parseSseMessages(
+  Stream<List<int>> byteStream, {
+  int maxBufferedChars = 64 * 1024,
+}) async* {
+  final dataLines = <String>[];
+  var bufferedChars = 0;
 
-  await for (final chunk in byteStream) {
-    buffer += decoder.convert(chunk);
+  void resetMessage() {
+    dataLines.clear();
+    bufferedChars = 0;
+  }
 
-    var separatorIndex = buffer.indexOf('\n\n');
-    while (separatorIndex != -1) {
-      final rawMessage = buffer
-          .substring(0, separatorIndex)
-          .replaceAll('\r', '');
-      buffer = buffer.substring(separatorIndex + 2);
+  String? buildMessage() {
+    if (dataLines.isEmpty) {
+      return null;
+    }
+    final message = dataLines.join('\n');
+    return message.trim().isEmpty ? null : message;
+  }
 
-      final dataLines = <String>[];
-      for (final line in const LineSplitter().convert(rawMessage)) {
-        if (line.startsWith(':')) {
-          continue;
-        }
-        if (line.startsWith('data:')) {
-          dataLines.add(line.substring(5).trimLeft());
-        }
-      }
-
-      final message = dataLines.join('\n');
-      if (message.trim().isNotEmpty) {
+  await for (final line
+      in utf8.decoder.bind(byteStream).transform(const LineSplitter())) {
+    if (line.isEmpty) {
+      final message = buildMessage();
+      if (message != null) {
         yield message;
       }
+      resetMessage();
+      continue;
+    }
 
-      separatorIndex = buffer.indexOf('\n\n');
+    if (line.startsWith(':')) {
+      continue;
+    }
+
+    if (line.startsWith('data:')) {
+      final payload = line.substring(5).trimLeft();
+      bufferedChars += payload.length;
+      if (bufferedChars > maxBufferedChars) {
+        throw StateError(
+          'SSE message exceeded maxBufferedChars ($maxBufferedChars).',
+        );
+      }
+      dataLines.add(payload);
     }
   }
 
-  if (buffer.trim().isNotEmpty) {
-    final rawMessage = buffer.replaceAll('\r', '');
-    final dataLines = <String>[];
-    for (final line in const LineSplitter().convert(rawMessage)) {
-      if (line.startsWith(':')) {
-        continue;
-      }
-      if (line.startsWith('data:')) {
-        dataLines.add(line.substring(5).trimLeft());
-      }
-    }
-
-    final message = dataLines.join('\n');
-    if (message.trim().isNotEmpty) {
-      yield message;
-    }
+  final trailingMessage = buildMessage();
+  if (trailingMessage != null) {
+    yield trailingMessage;
   }
 }
