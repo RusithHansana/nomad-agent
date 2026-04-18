@@ -30,7 +30,10 @@ class FileOnboardingFlagStore implements OnboardingFlagStore {
 
   @override
   Future<bool> getHasSeenThoughtLogOnboarding() async {
-    final file = await _resolveFile();
+    final file = await _tryResolveFile();
+    if (file == null) {
+      return false;
+    }
     if (!await file.exists()) {
       return false;
     }
@@ -55,13 +58,27 @@ class FileOnboardingFlagStore implements OnboardingFlagStore {
 
   @override
   Future<void> setHasSeenThoughtLogOnboarding() async {
-    final file = await _resolveFile();
+    final file = await _tryResolveFile();
+    if (file == null) {
+      return;
+    }
     final payload = <String, Object>{_flagKey: true};
-    await file.writeAsString(jsonEncode(payload), flush: true);
+    try {
+      await file.writeAsString(jsonEncode(payload), flush: true);
+    } on FileSystemException {
+      // Keep dismissal flow non-fatal if local storage is temporarily unavailable.
+      return;
+    }
   }
 
-  Future<File> _resolveFile() async {
-    final directory = await _loadDocumentsDirectory();
-    return File('${directory.path}/$_fileName');
+  Future<File?> _tryResolveFile() async {
+    try {
+      final directory = await _loadDocumentsDirectory();
+      return File('${directory.path}/$_fileName');
+    } on MissingPlatformDirectoryException {
+      return null;
+    } on FileSystemException {
+      return null;
+    }
   }
 }

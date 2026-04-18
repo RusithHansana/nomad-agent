@@ -182,7 +182,7 @@ void main() {
           ],
         ),
       );
-      await tester.pump();
+      await _pumpForOnboardingState(tester);
 
       expect(find.byKey(const ValueKey('onboarding-overlay')), findsOneWidget);
       expect(
@@ -209,7 +209,7 @@ void main() {
           ],
         ),
       );
-      await tester.pump();
+      await _pumpForOnboardingState(tester);
 
       expect(find.byKey(const ValueKey('onboarding-overlay')), findsOneWidget);
 
@@ -241,7 +241,7 @@ void main() {
           ],
         ),
       );
-      await tester.pump();
+      await _pumpForOnboardingState(tester);
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Got it'));
       await tester.pump();
@@ -269,7 +269,7 @@ void main() {
           ],
         ),
       );
-      await tester.pump();
+      await _pumpForOnboardingState(tester);
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Got it'));
       await tester.pump();
@@ -287,7 +287,7 @@ void main() {
           ],
         ),
       );
-      await tester.pump();
+      await _pumpForOnboardingState(tester);
 
       expect(find.byKey(const ValueKey('onboarding-overlay')), findsNothing);
     });
@@ -302,6 +302,11 @@ Widget _buildHarness({
     overrides: overrides,
     child: MaterialApp(home: GenerationScreen(prompt: prompt)),
   );
+}
+
+Future<void> _pumpForOnboardingState(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 20));
 }
 
 class _InMemoryOnboardingFlagStore implements OnboardingFlagStore {
