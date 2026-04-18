@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../core/constants/app_spacing.dart';
 import 'providers/generation_provider.dart';
+import 'providers/onboarding_overlay_provider.dart';
 import 'widgets/cold_start_overlay.dart';
+import 'widgets/onboarding_overlay.dart';
 import 'widgets/thought_log_viewer.dart';
 
 /// Live generation screen with streaming thought-log viewer.
@@ -50,6 +52,9 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
     final generationState = ref.watch(
       generationControllerProvider(widget.prompt),
     );
+    final shouldShowOnboarding = hasPrompt
+        ? ref.watch(onboardingOverlayControllerProvider).valueOrNull ?? false
+        : false;
 
     ref.listen(generationControllerProvider(widget.prompt), (previous, next) {
       final previousLength = previous?.entries.length ?? 0;
@@ -104,6 +109,22 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
                     child: generationState.showColdStartOverlay
                         ? const ColdStartOverlay(key: ValueKey('cold-start'))
                         : const SizedBox.shrink(key: ValueKey('no-overlay')),
+                  ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: shouldShowOnboarding
+                        ? OnboardingOverlay(
+                            key: const ValueKey('onboarding-layer'),
+                            onDismiss: () {
+                              ref
+                                  .read(
+                                    onboardingOverlayControllerProvider
+                                        .notifier,
+                                  )
+                                  .dismiss();
+                            },
+                          )
+                        : const SizedBox.shrink(key: ValueKey('no-onboarding')),
                   ),
                 ],
               ),
