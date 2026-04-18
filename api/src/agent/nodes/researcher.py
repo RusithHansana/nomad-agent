@@ -24,6 +24,28 @@ from src.models.events import (
     ThoughtLogEvent,
 )
 
+MAX_DESTINATION_LENGTH = 120
+MAX_TASK_NAME_LENGTH = 80
+MAX_QUERY_LENGTH = 240
+
+
+def _normalize_text(value: str, *, max_length: int) -> str:
+    normalized = re.sub(r"\s+", " ", value).strip()
+    return normalized[:max_length].strip()
+
+
+def _normalize_query(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    return _normalize_text(value, max_length=MAX_QUERY_LENGTH)
+
+
+def _normalize_task_name(value: object, *, fallback: str) -> str:
+    if not isinstance(value, str):
+        return fallback
+    normalized = _normalize_text(value, max_length=MAX_TASK_NAME_LENGTH)
+    return normalized or fallback
+
 
 def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
     event = ErrorEvent(
@@ -95,8 +117,16 @@ def _mark_results_unverified(results: list[dict[str, object]]) -> list[dict[str,
 
 def _broaden_query(query: str, task_name: str, destination: str) -> str:
     cleaned_query = _remove_specific_constraints(query)
-    if cleaned_query and cleaned_query != query and "around" not in cleaned_query.lower():
+    if (
+        cleaned_query
+        and cleaned_query != query
+        and "around" not in cleaned_query.lower()
+        and destination.strip()
+    ):
         return f"{cleaned_query} in and around {destination}".strip()
+
+    if cleaned_query and cleaned_query != query:
+        return cleaned_query
 
     if cleaned_query and "around" not in cleaned_query.lower() and destination.strip():
         return f"{cleaned_query} in and around {destination}".strip()
@@ -118,14 +148,23 @@ async def researcher_node(
     events = list(state.get("events", []))
     task_results = dict(state.get("task_results", {}))
     tasks = state.get("tasks", [])
-    destination = str(state.get("destination", "")).strip()
+    task_list = tasks if isinstance(tasks, list) else []
+    destination = _normalize_text(
+        str(state.get("destination", "")),
+        max_length=MAX_DESTINATION_LENGTH,
+    )
 
-    for task in tasks:
+    for index, task in enumerate(task_list, start=1):
         if current_calls >= MAX_TAVILY_CALLS:
             break
 
-        task_name = str(task.get("name", "Task")).strip() or "Task"
-        query = str(task.get("query", "")).strip()
+        fallback_task_name = f"Task {index}"
+        if not isinstance(task, dict):
+            task_results[fallback_task_name] = []
+            continue
+
+        task_name = _normalize_task_name(task.get("name"), fallback=fallback_task_name)
+        query = _normalize_query(task.get("query", ""))
         if not query:
             task_results[task_name] = []
             continue

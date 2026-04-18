@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+from pydantic import ValidationError
+
 from src.agent.graph import build_graph
 from src.agent.state import GENERATION_TIMEOUT_SECONDS
 from src.models.response import ItineraryResponse
@@ -65,5 +67,9 @@ async def generate_itinerary_response(prompt: str) -> dict[str, object]:
     if not isinstance(itinerary_payload, dict):
         raise GenerationPipelineError("Pipeline did not produce an itinerary")
 
-    response_model = ItineraryResponse.model_validate(itinerary_payload)
+    try:
+        response_model = ItineraryResponse.model_validate(itinerary_payload)
+    except ValidationError as exc:
+        raise GenerationPipelineError("Pipeline produced invalid itinerary payload") from exc
+
     return response_model.model_dump(exclude_none=True)

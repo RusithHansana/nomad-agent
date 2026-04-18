@@ -1,6 +1,10 @@
 import pytest
 
-from src.agent.nodes.researcher import researcher_node
+from src.agent.nodes.researcher import (
+    MAX_DESTINATION_LENGTH,
+    MAX_QUERY_LENGTH,
+    researcher_node,
+)
 from src.agent.state import MAX_RESULTS_PER_TASK, MAX_SEARCH_ITERATIONS_PER_TASK, MAX_TAVILY_CALLS
 from src.agent.tools.tavily_search import TavilySearchTool, TavilyUnavailableError
 
@@ -247,6 +251,80 @@ async def test_researcher_handles_non_int_calls_made_counter() -> None:
 
     assert result["task_results"]["Local Research"]
     assert result["tavily_calls_made"] == 1
+
+
+@pytest.mark.asyncio
+async def test_researcher_handles_malformed_tasks_without_crashing() -> None:
+    search_tool = FakeSearchTool()
+    state = {
+        "prompt": "trip",
+        "destination": "Kandy",
+        "duration_days": 2,
+        "interest_categories": ["history"],
+        "tasks": [
+            {"name": "Local Research", "query": "best historical sites"},
+            None,
+            "unexpected",
+            {"name": 123, "query": ["invalid"]},
+        ],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert len(search_tool.calls) == 1
+    assert result["task_results"]["Local Research"]
+    assert result["task_results"]["Task 2"] == []
+    assert result["task_results"]["Task 3"] == []
+    assert result["task_results"]["Task 4"] == []
+
+
+@pytest.mark.asyncio
+async def test_researcher_caps_destination_length_when_broadening_queries() -> None:
+    search_tool = EmptyThenPopulatedSearchTool()
+    long_destination = "A" * (MAX_DESTINATION_LENGTH + 40)
+    state = {
+        "prompt": "trip",
+        "destination": long_destination,
+        "duration_days": 2,
+        "interest_categories": ["nature"],
+        "tasks": [{"name": "Things To Do", "query": "hidden waterfalls with opening hours"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert len(search_tool.calls) == 2
+    capped_destination = "A" * MAX_DESTINATION_LENGTH
+    assert capped_destination in search_tool.calls[1][0]
+    assert ("A" * (MAX_DESTINATION_LENGTH + 1)) not in search_tool.calls[1][0]
+
+
+@pytest.mark.asyncio
+async def test_researcher_caps_query_length_before_search() -> None:
+    search_tool = FakeSearchTool()
+    state = {
+        "prompt": "trip",
+        "destination": "Kandy",
+        "duration_days": 2,
+        "interest_categories": ["history"],
+        "tasks": [{"name": "Local Research", "query": "x" * (MAX_QUERY_LENGTH + 50)}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+    }
+
+    await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    assert len(search_tool.calls) == 1
+    assert search_tool.calls[0][0] == "x" * MAX_QUERY_LENGTH
 
 
 def test_researcher_declares_iteration_cap_constant() -> None:
