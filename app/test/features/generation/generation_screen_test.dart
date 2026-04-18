@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app/core/models/sse_event.dart';
+import 'package:app/core/storage/onboarding_flag_store.dart';
 import 'package:app/features/generation/generation_screen.dart';
 import 'package:app/features/generation/providers/generation_provider.dart';
 import 'package:flutter/material.dart';
@@ -162,6 +163,134 @@ void main() {
 
       expect(find.widgetWithText(ElevatedButton, 'Try Again'), findsOneWidget);
     });
+
+    testWidgets('shows onboarding overlay for first-time users', (
+      tester,
+    ) async {
+      const prompt = 'Trip in Colombo';
+      final fakeStore = _InMemoryOnboardingFlagStore(initialSeen: false);
+
+      await tester.pumpWidget(
+        _buildHarness(
+          prompt: prompt,
+          overrides: [
+            onboardingFlagStoreProvider.overrideWithValue(fakeStore),
+            generationStreamFactoryProvider.overrideWith((ref) {
+              return (requestedPrompt, cancelToken) =>
+                  const Stream<SSEEvent>.empty();
+            }),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('onboarding-overlay')), findsOneWidget);
+      expect(
+        find.text(
+          'NomadAgent researches in real time. Watch the Thought Log to see every step.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('dismisses onboarding overlay on tap', (tester) async {
+      const prompt = 'Trip in Berlin';
+      final fakeStore = _InMemoryOnboardingFlagStore(initialSeen: false);
+
+      await tester.pumpWidget(
+        _buildHarness(
+          prompt: prompt,
+          overrides: [
+            onboardingFlagStoreProvider.overrideWithValue(fakeStore),
+            generationStreamFactoryProvider.overrideWith((ref) {
+              return (requestedPrompt, cancelToken) =>
+                  const Stream<SSEEvent>.empty();
+            }),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('onboarding-overlay')), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('onboarding-dismiss-surface')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('onboarding-overlay')), findsNothing);
+      expect(fakeStore.hasSeen, isTrue);
+    });
+
+    testWidgets('dismisses onboarding overlay with Got it button', (
+      tester,
+    ) async {
+      const prompt = 'Trip in Osaka';
+      final fakeStore = _InMemoryOnboardingFlagStore(initialSeen: false);
+
+      await tester.pumpWidget(
+        _buildHarness(
+          prompt: prompt,
+          overrides: [
+            onboardingFlagStoreProvider.overrideWithValue(fakeStore),
+            generationStreamFactoryProvider.overrideWith((ref) {
+              return (requestedPrompt, cancelToken) =>
+                  const Stream<SSEEvent>.empty();
+            }),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Got it'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('onboarding-overlay')), findsNothing);
+      expect(fakeStore.hasSeen, isTrue);
+    });
+
+    testWidgets('does not show onboarding after dismissal on next visit', (
+      tester,
+    ) async {
+      const prompt = 'Trip in Madrid';
+      final fakeStore = _InMemoryOnboardingFlagStore(initialSeen: false);
+
+      await tester.pumpWidget(
+        _buildHarness(
+          prompt: prompt,
+          overrides: [
+            onboardingFlagStoreProvider.overrideWithValue(fakeStore),
+            generationStreamFactoryProvider.overrideWith((ref) {
+              return (requestedPrompt, cancelToken) =>
+                  const Stream<SSEEvent>.empty();
+            }),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Got it'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.pumpWidget(
+        _buildHarness(
+          prompt: prompt,
+          overrides: [
+            onboardingFlagStoreProvider.overrideWithValue(fakeStore),
+            generationStreamFactoryProvider.overrideWith((ref) {
+              return (requestedPrompt, cancelToken) =>
+                  const Stream<SSEEvent>.empty();
+            }),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('onboarding-overlay')), findsNothing);
+    });
   });
 }
 
@@ -173,4 +302,23 @@ Widget _buildHarness({
     overrides: overrides,
     child: MaterialApp(home: GenerationScreen(prompt: prompt)),
   );
+}
+
+class _InMemoryOnboardingFlagStore implements OnboardingFlagStore {
+  _InMemoryOnboardingFlagStore({required bool initialSeen})
+    : _hasSeen = initialSeen;
+
+  bool _hasSeen;
+
+  bool get hasSeen => _hasSeen;
+
+  @override
+  Future<bool> getHasSeenThoughtLogOnboarding() async {
+    return _hasSeen;
+  }
+
+  @override
+  Future<void> setHasSeenThoughtLogOnboarding() async {
+    _hasSeen = true;
+  }
 }
