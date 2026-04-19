@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/sse_event.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/sse_parser.dart';
+import '../../itinerary/providers/itinerary_store_provider.dart';
 
 typedef GenerationStreamFactory =
     Stream<SSEEvent> Function(String prompt, CancelToken cancelToken);
@@ -300,6 +301,7 @@ class GenerationController
         message: '✅ Itinerary complete!',
         timestamp: event.timestamp,
       );
+      ref.read(itineraryStoreProvider.notifier).upsert(event.itinerary);
       _isTerminal = true;
       _elapsedTimer?.cancel();
       _coldStartTimer?.cancel();

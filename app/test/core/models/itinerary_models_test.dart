@@ -24,6 +24,7 @@ void main() {
                 'address': '2 Chome-3-1 Asakusa, Taito City, Tokyo',
                 'latitude': 35.7148,
                 'longitude': 139.7967,
+                'time_slot': '09:00 AM',
                 'rating': 4.6,
                 'is_verified': false,
                 'verification_note': 'Source unavailable',
@@ -31,10 +32,7 @@ void main() {
             ],
           },
         ],
-        'cost_summary': <String, Object?>{
-          'entertainment': 20.0,
-          'total': 20.0,
-        },
+        'cost_summary': <String, Object?>{'entertainment': 20.0, 'total': 20.0},
         'generated_at': '2026-04-14T10:00:00Z',
       };
 
@@ -50,6 +48,7 @@ void main() {
       final venues = firstDay['venues'] as List<Object?>;
       final firstVenue = venues.first as Map<String, Object?>;
       expect(firstVenue['is_verified'], isFalse);
+      expect(firstVenue['time_slot'], '09:00 AM');
       expect(firstVenue.containsKey('source_url'), isFalse);
     });
   });
@@ -77,9 +76,7 @@ void main() {
                 ],
               },
             ],
-            'cost_summary': <String, Object?>{
-              'total': 42.0,
-            },
+            'cost_summary': <String, Object?>{'total': 42.0},
             'generated_at': '2026-04-14T10:00:00Z',
           },
         },
