@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from langgraph.graph.state import CompiledStateGraph
+
 from src.agent.state import AgentState
 
 
-def build_graph() -> object:
+def build_graph() -> CompiledStateGraph:
     """Build and compile the minimal planner -> researcher -> compiler graph."""
     from langgraph.graph import END, START, StateGraph
 
