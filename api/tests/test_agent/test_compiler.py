@@ -3,8 +3,8 @@ from typing import Any, cast
 
 import pytest
 
-from src.agent.state import AgentState
 from src.agent.nodes.compiler import HOURS_UNVERIFIED_NOTE, compiler_node
+from src.agent.state import AgentState
 
 
 def _itinerary_from_result(result: AgentState) -> dict[str, Any]:
@@ -238,3 +238,90 @@ async def test_compiler_optimizes_order_by_proximity_for_valid_coordinates() -> 
     itinerary = _itinerary_from_result(result)
     venues = itinerary["days"][0]["venues"]
     assert [venue["name"] for venue in venues] == ["Start Point", "Near Venue", "Far Venue"]
+
+
+@pytest.mark.asyncio
+async def test_compiler_handles_non_integer_duration_days_value() -> None:
+    state = {
+        "prompt": "trip",
+        "destination": "Lisbon",
+        "duration_days": "3.0",
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "title": "Time Out Market",
+                    "address": "Av. 24 de Julho",
+                    "opening_hours": ["Mon-Sun 10:00-23:00"],
+                    "url": "https://example.com/timeout",
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    assert itinerary["duration_days"] == 1
+    assert len(itinerary["days"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_compiler_ignores_non_list_task_result_entries() -> None:
+    state = {
+        "prompt": "trip",
+        "destination": "Lisbon",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": {
+                "title": "This should be ignored",
+            }
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    assert len(itinerary["days"]) == 1
+    assert itinerary["days"][0]["venues"] == []
+
+
+@pytest.mark.asyncio
+async def test_compiler_treats_string_false_degraded_flag_as_false() -> None:
+    state = {
+        "prompt": "trip",
+        "destination": "Colombo",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "title": "Cafe Ceylon",
+                    "address": "Main Street",
+                    "opening_hours": ["Mon-Fri 8:00-22:00"],
+                    "url": "https://example.com/cafe-ceylon",
+                    "_degraded_unverified": "false",
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    venue = itinerary["days"][0]["venues"][0]
+    assert venue["is_verified"] is True
+    assert venue.get("verification_note") is None

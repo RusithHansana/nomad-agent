@@ -52,6 +52,21 @@ def _as_int(value: object) -> int | None:
         return None
 
 
+def _as_bool(value: object, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y"}:
+            return True
+        if normalized in {"false", "0", "no", "n", ""}:
+            return False
+        return default
+    if isinstance(value, (int, float)):
+        return value != 0
+    return default
+
+
 def _normalize_price_level(value: object) -> int | None:
     direct_int = _as_int(value)
     if direct_int is not None:
@@ -117,7 +132,7 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     )
 
     hours_verified = opening_hours is not None
-    force_unverified = bool(raw.get("_degraded_unverified"))
+    force_unverified = _as_bool(raw.get("_degraded_unverified"), default=False)
     is_verified = bool(
         source_url_str and has_structured_details and hours_verified and not force_unverified
     )
@@ -283,7 +298,7 @@ async def compiler_node(state: AgentState) -> AgentState:
     destination = (
         str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
     )
-    duration_days = max(1, int(state.get("duration_days", 1)))
+    duration_days = max(1, _as_int(state.get("duration_days", 1)) or 1)
     raw_events = state.get("events")
     events = list(raw_events) if isinstance(raw_events, list) else []
     events.append(
@@ -299,6 +314,8 @@ async def compiler_node(state: AgentState) -> AgentState:
     venues: list[Venue] = []
     for task_name, task_entries in state.get("task_results", {}).items():
         if not _is_venue_task(task_name):
+            continue
+        if not isinstance(task_entries, list):
             continue
         for entry in task_entries:
             if isinstance(entry, dict):
