@@ -21,13 +21,21 @@ class MapVenuePin extends StatefulWidget {
 }
 
 class _MapVenuePinState extends State<MapVenuePin> {
+  static const int _staggerStepMs = 100;
+  static const int _maxStaggerDelayMs = 1900;
+
   bool _visible = false;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(Duration(milliseconds: widget.index * 100), () {
+    final rawDelayMs = widget.index <= 0 ? 0 : widget.index * _staggerStepMs;
+    final safeDelayMs = rawDelayMs > _maxStaggerDelayMs
+        ? _maxStaggerDelayMs
+        : rawDelayMs;
+
+    _timer = Timer(Duration(milliseconds: safeDelayMs), () {
       if (!mounted) {
         return;
       }
@@ -64,10 +72,10 @@ class _MapVenuePinState extends State<MapVenuePin> {
           decoration: BoxDecoration(
             color: pinColor,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: const [
+            border: Border.all(color: AppColors.onSecondary, width: 2),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x22000000),
+                color: AppColors.textPrimary.withValues(alpha: 0.13),
                 blurRadius: 6,
                 offset: Offset(0, 2),
               ),

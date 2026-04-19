@@ -29,6 +29,14 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
   bool _hasFittedCamera = false;
 
   @override
+  void dispose() {
+    if (_mapController is ChangeNotifier) {
+      (_mapController as ChangeNotifier).dispose();
+    }
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _orderedVenues = _flattenVenues(widget.itinerary);
@@ -167,6 +175,9 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
   }
 
   static bool _isValidCoordinate(double latitude, double longitude) {
+    if (!latitude.isFinite || !longitude.isFinite) {
+      return false;
+    }
     if (latitude == 0 && longitude == 0) {
       return false;
     }

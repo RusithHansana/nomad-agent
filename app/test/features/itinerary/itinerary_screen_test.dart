@@ -3,6 +3,7 @@ import 'package:app/core/models/venue.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,16 +55,19 @@ void main() {
           ],
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Timeline'), findsOneWidget);
       expect(find.text('Map'), findsOneWidget);
 
       await tester.tap(find.text('Map'));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 850));
 
-      expect(find.text('1'), findsWidgets);
+      expect(find.byKey(const ValueKey<String>('map-pin-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('map-pin-2')), findsOneWidget);
+      expect(find.byType(TileLayer), findsNothing);
     });
 
     testWidgets('renders venue card details, badges, notes and source link', (
@@ -119,7 +123,10 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cost Summary'),
         200,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey<String>('itinerary-timeline-list')),
+          matching: find.byType(Scrollable),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -158,7 +165,10 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cost Summary'),
         200,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey<String>('itinerary-timeline-list')),
+          matching: find.byType(Scrollable),
+        ),
       );
       await tester.pumpAndSettle();
 

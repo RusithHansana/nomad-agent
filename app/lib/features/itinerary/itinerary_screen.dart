@@ -101,6 +101,7 @@ class _TimelineTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      key: const ValueKey<String>('itinerary-timeline-list'),
       padding: const EdgeInsets.all(AppSpacing.md),
       itemCount: itinerary.days.length + 1,
       itemBuilder: (context, dayIndex) {
