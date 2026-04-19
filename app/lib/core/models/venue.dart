@@ -9,6 +9,7 @@ class Venue {
     this.priceLevel,
     this.estimatedCost,
     this.sourceUrl,
+    this.timeSlot,
     required this.isVerified,
     this.verificationNote,
   });
@@ -22,6 +23,7 @@ class Venue {
   final int? priceLevel;
   final double? estimatedCost;
   final String? sourceUrl;
+  final String? timeSlot;
   final bool isVerified;
   final String? verificationNote;
 
@@ -38,6 +40,7 @@ class Venue {
       priceLevel: _asInt(json['price_level']),
       estimatedCost: _asDouble(json['estimated_cost']),
       sourceUrl: json['source_url'] as String?,
+      timeSlot: json['time_slot'] as String?,
       isVerified: (json['is_verified'] as bool?) ?? false,
       verificationNote: json['verification_note'] as String?,
     );
@@ -66,6 +69,9 @@ class Venue {
     if (sourceUrl != null) {
       map['source_url'] = sourceUrl;
     }
+    if (timeSlot != null) {
+      map['time_slot'] = timeSlot;
+    }
     if (verificationNote != null) {
       map['verification_note'] = verificationNote;
     }
@@ -82,6 +88,7 @@ class Venue {
     int? priceLevel,
     double? estimatedCost,
     String? sourceUrl,
+    String? timeSlot,
     bool? isVerified,
     String? verificationNote,
   }) {
@@ -95,6 +102,7 @@ class Venue {
       priceLevel: priceLevel ?? this.priceLevel,
       estimatedCost: estimatedCost ?? this.estimatedCost,
       sourceUrl: sourceUrl ?? this.sourceUrl,
+      timeSlot: timeSlot ?? this.timeSlot,
       isVerified: isVerified ?? this.isVerified,
       verificationNote: verificationNote ?? this.verificationNote,
     );
