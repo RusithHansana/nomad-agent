@@ -30,11 +30,25 @@ typedef SourceUrlLauncher = Future<bool> Function(String sourceUrl);
 
 final sourceUrlLauncherProvider = Provider<SourceUrlLauncher>((ref) {
   return (String sourceUrl) async {
-    final uri = Uri.tryParse(sourceUrl.trim());
+    final trimmed = sourceUrl.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+
+    final uri = Uri.tryParse(trimmed);
     if (uri == null) {
       return false;
     }
 
-    return launchUrl(uri, mode: LaunchMode.externalApplication);
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      return false;
+    }
+
+    try {
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   };
 });

@@ -15,39 +15,42 @@ class DayHeader extends StatelessWidget {
     final stops = dayPlan.venues.length;
     final estimatedCost = dayPlan.estimatedDayCost;
 
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: 1,
-      borderRadius: BorderRadius.circular(AppSpacing.md),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _dayLabel(dayPlan),
-              style: AppTypography.h2(color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Row(
-              children: [
-                Text(
-                  '$stops stops',
-                  style: AppTypography.bodySmall(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                if (estimatedCost != null)
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        elevation: 1,
+        borderRadius: BorderRadius.circular(AppSpacing.md),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _dayLabel(dayPlan),
+                style: AppTypography.h2(color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
                   Text(
-                    _formatDayCost(estimatedCost),
+                    '$stops stops',
                     style: AppTypography.bodySmall(
                       color: AppColors.textSecondary,
                     ),
                   ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: AppSpacing.sm),
+                  if (estimatedCost != null)
+                    Text(
+                      _formatDayCost(estimatedCost),
+                      style: AppTypography.bodySmall(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
