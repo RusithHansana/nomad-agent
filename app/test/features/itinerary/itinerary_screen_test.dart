@@ -70,6 +70,69 @@ void main() {
       expect(find.byType(TileLayer), findsNothing);
     });
 
+    testWidgets('opens venue detail bottom sheet when a map pin is tapped', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Map'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1600));
+
+      await tester.tap(find.byKey(const ValueKey<String>('map-pin-1')));
+      await tester.pump(const Duration(milliseconds: 450));
+
+      expect(find.text('Tea House'), findsOneWidget);
+      expect(find.text('Open daily 09:00-21:00'), findsOneWidget);
+      expect(find.text('★ 4.6'), findsOneWidget);
+      expect(find.text('✅ Verified'), findsOneWidget);
+    });
+
+    testWidgets('reveals map route polylines after delayed pin landing', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+      final routeLayerFinder = find.byKey(
+        const ValueKey<String>('map-route-layer'),
+      );
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Map'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(routeLayerFinder, findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 1800));
+      expect(routeLayerFinder, findsOneWidget);
+    });
+
     testWidgets('renders venue card details, badges, notes and source link', (
       tester,
     ) async {
