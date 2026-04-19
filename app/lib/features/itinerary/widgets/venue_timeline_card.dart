@@ -6,6 +6,8 @@ import 'package:app/core/theme/app_colors.dart';
 import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 
+import 'verification_badge.dart';
+
 class VenueTimelineCard extends StatefulWidget {
   const VenueTimelineCard({
     super.key,
@@ -49,6 +51,10 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
   Widget build(BuildContext context) {
     final openingHoursText = _openingHoursText(widget.venue.openingHours);
     final statusText = _openingStatus(openingHoursText);
+    final badgeType = _badgeType(widget.venue);
+    final verificationNote = widget.venue.verificationNote?.trim();
+    final hasVerificationNote =
+        verificationNote != null && verificationNote.isNotEmpty;
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 260),
@@ -106,10 +112,38 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.venue.name,
-                          style: AppTypography.h3(color: AppColors.textPrimary),
-                        ),
+                        if (badgeType == VerificationBadgeType.verified)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  widget.venue.name,
+                                  style: AppTypography.h3(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              VerificationBadge(
+                                type: VerificationBadgeType.verified,
+                                sourceUrl: widget.venue.sourceUrl,
+                              ),
+                            ],
+                          )
+                        else ...[
+                          Text(
+                            widget.venue.name,
+                            style: AppTypography.h3(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          VerificationBadge(
+                            type: badgeType,
+                            sourceUrl: widget.venue.sourceUrl,
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           widget.venue.address,
@@ -117,6 +151,17 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        if (badgeType == VerificationBadgeType.unverified &&
+                            hasVerificationNote)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                            child: Text(
+                              verificationNote,
+                              style: AppTypography.bodySmall(
+                                color: AppColors.warning,
+                              ),
+                            ),
+                          ),
                         if (openingHoursText != null) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
@@ -247,5 +292,32 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
       return '~\$$rounded';
     }
     return '~\$${estimate.toStringAsFixed(1)}';
+  }
+
+  static VerificationBadgeType _badgeType(Venue venue) {
+    if (_isPermanentlyClosed(venue)) {
+      return VerificationBadgeType.closed;
+    }
+    return venue.isVerified
+        ? VerificationBadgeType.verified
+        : VerificationBadgeType.unverified;
+  }
+
+  static bool _isPermanentlyClosed(Venue venue) {
+    final inOpeningHours =
+        venue.openingHours?.any((line) => _containsPermanentlyClosed(line)) ??
+        false;
+    final inVerificationNote = _containsPermanentlyClosed(
+      venue.verificationNote,
+    );
+    return inOpeningHours || inVerificationNote;
+  }
+
+  static bool _containsPermanentlyClosed(String? text) {
+    final normalized = text?.toLowerCase().trim();
+    if (normalized == null || normalized.isEmpty) {
+      return false;
+    }
+    return normalized.contains('permanently closed');
   }
 }

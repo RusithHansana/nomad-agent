@@ -6,6 +6,7 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import 'providers/itinerary_store_provider.dart';
+import 'widgets/cost_summary_section.dart';
 import 'widgets/day_header.dart';
 import 'widgets/venue_timeline_card.dart';
 
@@ -63,48 +64,48 @@ class ItineraryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(itinerary.destination)),
-      body: ListView.builder(
+      body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
-        itemCount: itinerary.days.length,
-        itemBuilder: (context, dayIndex) {
-          final day = itinerary.days[dayIndex];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DayHeader(dayPlan: day),
-                const SizedBox(height: AppSpacing.md),
-                for (
-                  var venueIndex = 0;
-                  venueIndex < day.venues.length;
-                  venueIndex++
-                )
-                  VenueTimelineCard(
-                    venue: day.venues[venueIndex],
-                    index: venueIndex,
-                    onViewSource: (venue) async {
-                      final sourceUrl = venue.sourceUrl;
-                      if (sourceUrl == null || sourceUrl.trim().isEmpty) {
-                        return;
-                      }
+        children: [
+          for (var dayIndex = 0; dayIndex < itinerary.days.length; dayIndex++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DayHeader(dayPlan: itinerary.days[dayIndex]),
+                  const SizedBox(height: AppSpacing.md),
+                  for (
+                    var venueIndex = 0;
+                    venueIndex < itinerary.days[dayIndex].venues.length;
+                    venueIndex++
+                  )
+                    VenueTimelineCard(
+                      venue: itinerary.days[dayIndex].venues[venueIndex],
+                      index: venueIndex,
+                      onViewSource: (venue) async {
+                        final sourceUrl = venue.sourceUrl;
+                        if (sourceUrl == null || sourceUrl.trim().isEmpty) {
+                          return;
+                        }
 
-                      final launched = await launcher(sourceUrl);
-                      if (!launched && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Unable to open source link right now.',
+                        final launched = await launcher(sourceUrl);
+                        if (!launched && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Unable to open source link right now.',
+                              ),
                             ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-              ],
+                          );
+                        }
+                      },
+                    ),
+                ],
+              ),
             ),
-          );
-        },
+          CostSummarySection(costSummary: itinerary.costSummary),
+        ],
       ),
     );
   }

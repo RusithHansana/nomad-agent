@@ -37,7 +37,9 @@ void main() {
       expect(find.text('~\$85'), findsOneWidget);
     });
 
-    testWidgets('renders venue card details and source link', (tester) async {
+    testWidgets('renders venue card details, badges, notes and source link', (
+      tester,
+    ) async {
       final itinerary = _sampleItinerary();
 
       await tester.pumpWidget(
@@ -57,7 +59,45 @@ void main() {
       expect(find.text('Tea House'), findsOneWidget);
       expect(find.text('12 Sakura Street'), findsOneWidget);
       expect(find.text('★ 4.6'), findsOneWidget);
+      expect(find.text('✅ Verified'), findsOneWidget);
+      expect(find.text('⚠️ Unverified'), findsOneWidget);
+      expect(
+        find.text('Limited online signal, verify opening hours.'),
+        findsOneWidget,
+      );
       expect(find.text('View source →'), findsWidgets);
+    });
+
+    testWidgets('renders cost summary with category totals and trip total', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(find.text('Cost Summary'), 200);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cost Summary'), findsOneWidget);
+      expect(find.text('Food'), findsOneWidget);
+      expect(find.text('Entertainment'), findsOneWidget);
+      expect(find.text('Transport'), findsOneWidget);
+      expect(find.text('Trip Total'), findsOneWidget);
+      expect(find.text('~\$40'), findsOneWidget);
+      expect(find.text('~\$25'), findsOneWidget);
+      expect(find.text('~\$20'), findsOneWidget);
     });
 
     testWidgets('uses timeSlot first and fallback label for missing timeSlot', (
@@ -133,12 +173,18 @@ Itinerary _sampleItinerary() {
             openingHours: ['Closed on Mondays'],
             estimatedCost: 30,
             sourceUrl: 'https://example.com/temple-garden',
-            isVerified: true,
+            isVerified: false,
+            verificationNote: 'Limited online signal, verify opening hours.',
           ),
         ],
       ),
     ],
-    costSummary: const CostSummary(total: 85),
+    costSummary: const CostSummary(
+      food: 40,
+      entertainment: 25,
+      transport: 20,
+      total: 85,
+    ),
     generatedAt: '2026-04-19T12:00:00Z',
   );
 }
