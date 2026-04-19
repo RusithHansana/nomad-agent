@@ -24,27 +24,34 @@ class _VerificationBadgeState extends State<VerificationBadge>
   @override
   void initState() {
     super.initState();
+    final shouldAnimate = widget.type == VerificationBadgeType.verified;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
+      value: shouldAnimate ? 0 : 1,
     );
-    _scale = TweenSequence<double>([
-      TweenSequenceItem<double>(
-        tween: Tween<double>(
-          begin: 0,
-          end: 1.1,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 65,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(
-          begin: 1.1,
-          end: 1,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 35,
-      ),
-    ]).animate(_controller);
-    _controller.forward();
+    if (shouldAnimate) {
+      _scale = TweenSequence<double>([
+        TweenSequenceItem<double>(
+          tween: Tween<double>(
+            begin: 0,
+            end: 1.1,
+          ).chain(CurveTween(curve: Curves.easeOut)),
+          weight: 65,
+        ),
+        TweenSequenceItem<double>(
+          tween: Tween<double>(
+            begin: 1.1,
+            end: 1,
+          ).chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 35,
+        ),
+      ]).animate(_controller);
+      _controller.forward();
+      return;
+    }
+
+    _scale = const AlwaysStoppedAnimation<double>(1);
   }
 
   @override
@@ -57,33 +64,47 @@ class _VerificationBadgeState extends State<VerificationBadge>
   Widget build(BuildContext context) {
     final theme = _styleFor(widget.type);
     final sourceUrl = widget.sourceUrl?.trim();
-    final hasSourceUrl = sourceUrl != null && sourceUrl.isNotEmpty;
+    final canShowSource =
+        widget.type == VerificationBadgeType.verified &&
+        sourceUrl != null &&
+        sourceUrl.isNotEmpty;
 
-    final badge = GestureDetector(
-      onTap: hasSourceUrl
-          ? () => _tooltipKey.currentState?.ensureTooltipVisible()
-          : null,
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xs,
-            vertical: AppSpacing.xxs,
-          ),
-          decoration: BoxDecoration(
-            color: theme.foreground.withValues(alpha: theme.backgroundAlpha),
-            borderRadius: BorderRadius.circular(AppSpacing.xl),
-            border: Border.all(color: theme.foreground),
-          ),
-          child: Text(
-            theme.label,
-            style: AppTypography.caption(color: theme.foreground),
+    final badge = Semantics(
+      label: theme.semanticLabel,
+      hint: canShowSource ? 'Tap to show source URL' : null,
+      button: canShowSource,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.xl),
+          onTap: canShowSource
+              ? () => _tooltipKey.currentState?.ensureTooltipVisible()
+              : null,
+          child: ScaleTransition(
+            scale: _scale,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: BoxDecoration(
+                color: theme.foreground.withValues(
+                  alpha: theme.backgroundAlpha,
+                ),
+                borderRadius: BorderRadius.circular(AppSpacing.xl),
+                border: Border.all(color: theme.foreground),
+              ),
+              child: Text(
+                theme.label,
+                style: AppTypography.caption(color: theme.foreground),
+              ),
+            ),
           ),
         ),
       ),
     );
 
-    if (!hasSourceUrl) {
+    if (!canShowSource) {
       return badge;
     }
 
@@ -100,18 +121,21 @@ class _VerificationBadgeState extends State<VerificationBadge>
       case VerificationBadgeType.verified:
         return const _BadgeStyle(
           label: '✅ Verified',
+          semanticLabel: 'Verified',
           foreground: AppColors.success,
           backgroundAlpha: 0.12,
         );
       case VerificationBadgeType.unverified:
         return const _BadgeStyle(
           label: '⚠️ Unverified',
+          semanticLabel: 'Unverified',
           foreground: AppColors.warning,
           backgroundAlpha: 0.14,
         );
       case VerificationBadgeType.closed:
         return const _BadgeStyle(
           label: '❌ Closed',
+          semanticLabel: 'Closed',
           foreground: AppColors.error,
           backgroundAlpha: 0.12,
         );
@@ -122,11 +146,13 @@ class _VerificationBadgeState extends State<VerificationBadge>
 class _BadgeStyle {
   const _BadgeStyle({
     required this.label,
+    required this.semanticLabel,
     required this.foreground,
     required this.backgroundAlpha,
   });
 
   final String label;
+  final String semanticLabel;
   final Color foreground;
   final double backgroundAlpha;
 }

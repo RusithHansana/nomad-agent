@@ -87,7 +87,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(find.text('Cost Summary'), 200);
+      await tester.scrollUntilVisible(
+        find.text('Cost Summary'),
+        200,
+        scrollable: find.byType(Scrollable),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Cost Summary'), findsOneWidget);
@@ -98,6 +102,48 @@ void main() {
       expect(find.text('~\$40'), findsOneWidget);
       expect(find.text('~\$25'), findsOneWidget);
       expect(find.text('~\$20'), findsOneWidget);
+      expect(find.text('~\$85'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('shows unknown category totals with friendly helper text', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary().copyWith(
+        costSummary: const CostSummary(total: 85),
+      );
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Cost Summary'),
+        200,
+        scrollable: find.byType(Scrollable),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cost Summary'), findsOneWidget);
+      expect(find.text('Food'), findsOneWidget);
+      expect(find.text('Entertainment'), findsOneWidget);
+      expect(find.text('Transport'), findsOneWidget);
+      expect(find.text('Trip Total'), findsOneWidget);
+      expect(find.text('~\$85'), findsAtLeastNWidgets(1));
+      expect(find.text('—'), findsNWidgets(3));
+      expect(
+        find.text('ⓘ Some category totals are currently unavailable.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('uses timeSlot first and fallback label for missing timeSlot', (

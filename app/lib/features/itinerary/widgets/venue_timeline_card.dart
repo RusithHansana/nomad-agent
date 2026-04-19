@@ -113,18 +113,17 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (badgeType == VerificationBadgeType.verified)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Wrap(
+                            spacing: AppSpacing.xs,
+                            runSpacing: AppSpacing.xxs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  widget.venue.name,
-                                  style: AppTypography.h3(
-                                    color: AppColors.textPrimary,
-                                  ),
+                              Text(
+                                widget.venue.name,
+                                style: AppTypography.h3(
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.xs),
                               VerificationBadge(
                                 type: VerificationBadgeType.verified,
                                 sourceUrl: widget.venue.sourceUrl,
@@ -151,7 +150,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        if (badgeType == VerificationBadgeType.unverified &&
+                        if (badgeType != VerificationBadgeType.verified &&
                             hasVerificationNote)
                           Padding(
                             padding: const EdgeInsets.only(top: AppSpacing.xxs),

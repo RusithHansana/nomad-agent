@@ -11,6 +11,14 @@ class CostSummarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final foodDisplay = _formatOptionalCost(costSummary.food);
+    final entertainmentDisplay = _formatOptionalCost(costSummary.entertainment);
+    final transportDisplay = _formatOptionalCost(costSummary.transport);
+    final hasUnknownCategory =
+        foodDisplay.isUnknown ||
+        entertainmentDisplay.isUnknown ||
+        transportDisplay.isUnknown;
+
     return Card(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       child: Padding(
@@ -23,21 +31,12 @@ class CostSummarySection extends StatelessWidget {
               style: AppTypography.h3(color: AppColors.textPrimary),
             ),
             const SizedBox(height: AppSpacing.sm),
-            if (costSummary.food != null)
-              _CostSummaryRow(
-                label: 'Food',
-                value: _formatCost(costSummary.food!),
-              ),
-            if (costSummary.entertainment != null)
-              _CostSummaryRow(
-                label: 'Entertainment',
-                value: _formatCost(costSummary.entertainment!),
-              ),
-            if (costSummary.transport != null)
-              _CostSummaryRow(
-                label: 'Transport',
-                value: _formatCost(costSummary.transport!),
-              ),
+            _CostSummaryRow(label: 'Food', value: foodDisplay.value),
+            _CostSummaryRow(
+              label: 'Entertainment',
+              value: entertainmentDisplay.value,
+            ),
+            _CostSummaryRow(label: 'Transport', value: transportDisplay.value),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: Divider(height: 1),
@@ -47,19 +46,45 @@ class CostSummarySection extends StatelessWidget {
               value: _formatCost(costSummary.total),
               emphasize: true,
             ),
+            if (hasUnknownCategory)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  'ⓘ Some category totals are currently unavailable.',
+                  style: AppTypography.caption(color: AppColors.textSecondary),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
+  static _CostDisplay _formatOptionalCost(double? amount) {
+    if (amount == null || !amount.isFinite) {
+      return const _CostDisplay(value: '—', isUnknown: true);
+    }
+    return _CostDisplay(value: _formatCost(amount), isUnknown: false);
+  }
+
   static String _formatCost(double amount) {
-    final rounded = amount.round();
-    if (amount == rounded.toDouble()) {
-      return '~\$$rounded';
+    if (!amount.isFinite) {
+      return '—';
+    }
+
+    final rounded = amount.roundToDouble();
+    if ((amount - rounded).abs() < 1e-9) {
+      return '~\$${rounded.toInt()}';
     }
     return '~\$${amount.toStringAsFixed(1)}';
   }
+}
+
+class _CostDisplay {
+  const _CostDisplay({required this.value, required this.isUnknown});
+
+  final String value;
+  final bool isUnknown;
 }
 
 class _CostSummaryRow extends StatelessWidget {
@@ -83,12 +108,25 @@ class _CostSummaryRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: style)),
-          Text(
-            value,
-            style: emphasize
-                ? AppTypography.body(color: AppColors.textPrimary)
-                : AppTypography.bodySmall(color: AppColors.textPrimary),
+          Expanded(
+            child: Text(
+              label,
+              style: style,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: emphasize
+                  ? AppTypography.body(color: AppColors.textPrimary)
+                  : AppTypography.bodySmall(color: AppColors.textPrimary),
+            ),
           ),
         ],
       ),
