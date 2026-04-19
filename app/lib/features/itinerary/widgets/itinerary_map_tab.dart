@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/core/constants/app_spacing.dart';
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
@@ -8,6 +10,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'map_venue_pin.dart';
+import 'verification_badge.dart';
 
 class ItineraryMapTab extends StatefulWidget {
   const ItineraryMapTab({
@@ -24,12 +27,20 @@ class ItineraryMapTab extends StatefulWidget {
 }
 
 class _ItineraryMapTabState extends State<ItineraryMapTab> {
+  static const int _pinStaggerStepMs = 100;
+  static const int _pinMaxStaggerDelayMs = 1900;
+  static const int _pinFadeInDurationMs = 260;
+  static const int _routeRevealBufferMs = 120;
+
   final MapController _mapController = MapController();
   late List<_OrderedVenue> _orderedVenues;
   bool _hasFittedCamera = false;
+  bool _showRoutes = false;
+  Timer? _routeRevealTimer;
 
   @override
   void dispose() {
+    _routeRevealTimer?.cancel();
     if (_mapController is ChangeNotifier) {
       (_mapController as ChangeNotifier).dispose();
     }
@@ -40,6 +51,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
   void initState() {
     super.initState();
     _orderedVenues = _flattenVenues(widget.itinerary);
+    _scheduleRouteReveal();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitCameraIfNeeded();
     });
@@ -51,6 +63,8 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
     if (oldWidget.itinerary != widget.itinerary) {
       _orderedVenues = _flattenVenues(widget.itinerary);
       _hasFittedCamera = false;
+      _showRoutes = false;
+      _scheduleRouteReveal();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _fitCameraIfNeeded();
       });
@@ -66,6 +80,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
         )
         .map((item) => LatLng(item.venue.latitude, item.venue.longitude))
         .toList(growable: false);
+    final routePolylines = _buildRoutePolylines();
 
     return Stack(
       children: [
@@ -83,6 +98,21 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'dev.nomadagent.app',
               ),
+            if (_showRoutes && routePolylines.isNotEmpty)
+              KeyedSubtree(
+                key: const ValueKey<String>('map-route-layer'),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOut,
+                  builder: (context, opacity, child) {
+                    return Opacity(opacity: opacity, child: child);
+                  },
+                  child: IgnorePointer(
+                    child: PolylineLayer(polylines: routePolylines),
+                  ),
+                ),
+              ),
             MarkerLayer(
               markers: [
                 for (final item in _orderedVenues)
@@ -94,11 +124,15 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
                       width: 40,
                       height: 40,
                       point: LatLng(item.venue.latitude, item.venue.longitude),
-                      child: MapVenuePin(
-                        key: ValueKey<String>('map-pin-${item.order}'),
-                        number: item.order,
-                        isVerified: item.venue.isVerified,
-                        index: item.order - 1,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showVenueDetailSheet(item.venue),
+                        child: MapVenuePin(
+                          key: ValueKey<String>('map-pin-${item.order}'),
+                          number: item.order,
+                          isVerified: item.venue.isVerified,
+                          index: item.order - 1,
+                        ),
                       ),
                     ),
               ],
@@ -160,6 +194,85 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
     _hasFittedCamera = true;
   }
 
+  void _scheduleRouteReveal() {
+    _routeRevealTimer?.cancel();
+
+    final validPinIndexes = _orderedVenues
+        .where(
+          (item) =>
+              _isValidCoordinate(item.venue.latitude, item.venue.longitude),
+        )
+        .map((item) => item.order - 1)
+        .toList(growable: false);
+
+    if (validPinIndexes.length < 2) {
+      return;
+    }
+
+    final maxIndex = validPinIndexes.reduce(
+      (current, next) => current > next ? current : next,
+    );
+    final rawDelayMs = maxIndex <= 0 ? 0 : maxIndex * _pinStaggerStepMs;
+    final clampedDelayMs = rawDelayMs > _pinMaxStaggerDelayMs
+        ? _pinMaxStaggerDelayMs
+        : rawDelayMs;
+    final totalDelayMs =
+        clampedDelayMs + _pinFadeInDurationMs + _routeRevealBufferMs;
+
+    _routeRevealTimer = Timer(Duration(milliseconds: totalDelayMs), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showRoutes = true;
+      });
+    });
+  }
+
+  List<Polyline> _buildRoutePolylines() {
+    final segments = <Polyline>[];
+
+    for (var i = 0; i < _orderedVenues.length - 1; i++) {
+      final start = _orderedVenues[i].venue;
+      final end = _orderedVenues[i + 1].venue;
+      final startValid = _isValidCoordinate(start.latitude, start.longitude);
+      final endValid = _isValidCoordinate(end.latitude, end.longitude);
+
+      if (!startValid || !endValid) {
+        continue;
+      }
+
+      segments.add(
+        Polyline(
+          points: [
+            LatLng(start.latitude, start.longitude),
+            LatLng(end.latitude, end.longitude),
+          ],
+          strokeWidth: 4,
+          color: AppColors.primaryVariant.withValues(alpha: 0.62),
+          strokeCap: StrokeCap.round,
+        ),
+      );
+    }
+
+    return segments;
+  }
+
+  Future<void> _showVenueDetailSheet(Venue venue) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppSpacing.xl),
+        ),
+      ),
+      builder: (context) => _VenueDetailSheet(venue: venue),
+    );
+  }
+
   static List<_OrderedVenue> _flattenVenues(Itinerary itinerary) {
     final ordered = <_OrderedVenue>[];
     var order = 1;
@@ -196,4 +309,80 @@ class _OrderedVenue {
 
   final int order;
   final Venue venue;
+}
+
+class _VenueDetailSheet extends StatelessWidget {
+  const _VenueDetailSheet({required this.venue});
+
+  final Venue venue;
+
+  @override
+  Widget build(BuildContext context) {
+    final openingHoursLine = _openingHoursLine(venue.openingHours);
+    final badgeType = _badgeTypeForVenue(venue);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            venue.name,
+            style: AppTypography.h3(color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            openingHoursLine,
+            style: AppTypography.bodySmall(color: AppColors.textSecondary),
+          ),
+          if (venue.rating != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '★ ${venue.rating!.toStringAsFixed(1)}',
+              style: AppTypography.body(color: AppColors.textPrimary),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          VerificationBadge(type: badgeType, sourceUrl: venue.sourceUrl),
+        ],
+      ),
+    );
+  }
+
+  static String _openingHoursLine(List<String>? openingHours) {
+    if (openingHours == null || openingHours.isEmpty) {
+      return 'Hours unavailable';
+    }
+
+    final nonEmptyLines = openingHours
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList(growable: false);
+    if (nonEmptyLines.isEmpty) {
+      return 'Hours unavailable';
+    }
+    return nonEmptyLines.join(' · ');
+  }
+
+  static VerificationBadgeType _badgeTypeForVenue(Venue venue) {
+    if (venue.isVerified) {
+      return VerificationBadgeType.verified;
+    }
+
+    final openingHours = venue.openingHours;
+    final hasClosedLabel =
+        openingHours != null &&
+        openingHours.any((line) => line.toLowerCase().contains('closed'));
+    if (hasClosedLabel) {
+      return VerificationBadgeType.closed;
+    }
+
+    return VerificationBadgeType.unverified;
+  }
 }
