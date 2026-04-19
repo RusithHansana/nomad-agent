@@ -17,6 +17,7 @@ class Venue(ModelBase):
     rating: float | None = None
     price_level: int | None = None
     estimated_cost: float | None = None
+    time_slot: str | None = None
     source_url: str | None = None
     is_verified: bool
     verification_note: str | None = None
