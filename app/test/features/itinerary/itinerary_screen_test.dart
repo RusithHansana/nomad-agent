@@ -37,6 +37,35 @@ void main() {
       expect(find.text('~\$85'), findsOneWidget);
     });
 
+    testWidgets('shows Timeline and Map tabs and renders map pins', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Timeline'), findsOneWidget);
+      expect(find.text('Map'), findsOneWidget);
+
+      await tester.tap(find.text('Map'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1'), findsWidgets);
+    });
+
     testWidgets('renders venue card details, badges, notes and source link', (
       tester,
     ) async {
@@ -90,7 +119,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cost Summary'),
         200,
-        scrollable: find.byType(Scrollable),
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.pumpAndSettle();
 
@@ -129,7 +158,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cost Summary'),
         200,
-        scrollable: find.byType(Scrollable),
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.pumpAndSettle();
 
@@ -171,10 +200,16 @@ void main() {
   });
 }
 
-Widget _buildHarness({required String id, required List<Override> overrides}) {
+Widget _buildHarness({
+  required String id,
+  required List<Override> overrides,
+  bool showMapTiles = false,
+}) {
   return ProviderScope(
     overrides: overrides,
-    child: MaterialApp(home: ItineraryScreen(id: id)),
+    child: MaterialApp(
+      home: ItineraryScreen(id: id, showMapTiles: showMapTiles),
+    ),
   );
 }
 
@@ -202,8 +237,8 @@ Itinerary _sampleItinerary() {
           Venue(
             name: 'Tea House',
             address: '12 Sakura Street',
-            latitude: 0,
-            longitude: 0,
+            latitude: 35.0116,
+            longitude: 135.7681,
             openingHours: ['Open daily 09:00-21:00'],
             rating: 4.6,
             priceLevel: 2,
@@ -214,8 +249,8 @@ Itinerary _sampleItinerary() {
           Venue(
             name: 'Temple Garden',
             address: '88 River Lane',
-            latitude: 0,
-            longitude: 0,
+            latitude: 35.0212,
+            longitude: 135.7797,
             openingHours: ['Closed on Mondays'],
             estimatedCost: 30,
             sourceUrl: 'https://example.com/temple-garden',
