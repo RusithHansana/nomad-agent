@@ -3,6 +3,7 @@ import 'package:app/core/models/venue.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,6 +36,38 @@ void main() {
       expect(find.text('Day 1 — Sunday, April 5'), findsOneWidget);
       expect(find.text('2 stops'), findsOneWidget);
       expect(find.text('~\$85'), findsOneWidget);
+    });
+
+    testWidgets('shows Timeline and Map tabs and renders map pins', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Timeline'), findsOneWidget);
+      expect(find.text('Map'), findsOneWidget);
+
+      await tester.tap(find.text('Map'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 850));
+
+      expect(find.byKey(const ValueKey<String>('map-pin-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('map-pin-2')), findsOneWidget);
+      expect(find.byType(TileLayer), findsNothing);
     });
 
     testWidgets('renders venue card details, badges, notes and source link', (
@@ -90,7 +123,10 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cost Summary'),
         200,
-        scrollable: find.byType(Scrollable),
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey<String>('itinerary-timeline-list')),
+          matching: find.byType(Scrollable),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -129,7 +165,10 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cost Summary'),
         200,
-        scrollable: find.byType(Scrollable),
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey<String>('itinerary-timeline-list')),
+          matching: find.byType(Scrollable),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -171,10 +210,16 @@ void main() {
   });
 }
 
-Widget _buildHarness({required String id, required List<Override> overrides}) {
+Widget _buildHarness({
+  required String id,
+  required List<Override> overrides,
+  bool showMapTiles = false,
+}) {
   return ProviderScope(
     overrides: overrides,
-    child: MaterialApp(home: ItineraryScreen(id: id)),
+    child: MaterialApp(
+      home: ItineraryScreen(id: id, showMapTiles: showMapTiles),
+    ),
   );
 }
 
@@ -202,8 +247,8 @@ Itinerary _sampleItinerary() {
           Venue(
             name: 'Tea House',
             address: '12 Sakura Street',
-            latitude: 0,
-            longitude: 0,
+            latitude: 35.0116,
+            longitude: 135.7681,
             openingHours: ['Open daily 09:00-21:00'],
             rating: 4.6,
             priceLevel: 2,
@@ -214,8 +259,8 @@ Itinerary _sampleItinerary() {
           Venue(
             name: 'Temple Garden',
             address: '88 River Lane',
-            latitude: 0,
-            longitude: 0,
+            latitude: 35.0212,
+            longitude: 135.7797,
             openingHours: ['Closed on Mondays'],
             estimatedCost: 30,
             sourceUrl: 'https://example.com/temple-garden',
