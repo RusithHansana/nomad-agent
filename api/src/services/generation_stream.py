@@ -22,6 +22,43 @@ from src.models.events import (
 from src.models.response import ItineraryResponse
 
 
+def _coerce_int(value: object, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _compute_event_delta(
+    *,
+    events: list[dict[str, object]],
+    base_cursor: int,
+    last_sent_cursor: int,
+) -> tuple[list[dict[str, object]], int]:
+    """Return the next event slice and the updated last_sent_cursor.
+
+    Cursors are 1-based for the first event appended into the buffer.
+    `base_cursor` is the cursor of events[0].
+    """
+    if not events:
+        return [], last_sent_cursor
+
+    base_cursor = max(1, base_cursor)
+
+    if last_sent_cursor < base_cursor - 1:
+        start_index = 0
+    else:
+        start_index = (last_sent_cursor + 1) - base_cursor
+
+    if start_index < 0:
+        start_index = 0
+    if start_index >= len(events):
+        return [], last_sent_cursor
+
+    new_last_sent_cursor = base_cursor + len(events) - 1
+    return events[start_index:], new_last_sent_cursor
+
+
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -57,6 +94,8 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
         "interest_categories": [],
         "tasks": [],
         "tavily_calls_made": 0,
+        "event_cursor": 0,
+        "event_base_cursor": 1,
         "events": [],
         "task_results": {},
         "error_event": None,
@@ -74,7 +113,7 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
     )
     yield start_event.to_payload()
 
-    seen_event_count = 0
+    last_sent_cursor = 0
     final_state: dict[str, object] | None = None
     started_at = time.monotonic()
     stream = None
@@ -103,17 +142,27 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
             if not isinstance(event_payloads, list):
                 continue
 
-            if len(event_payloads) < seen_event_count:
-                seen_event_count = 0
+            event_base_cursor = _coerce_int(state.get("event_base_cursor"), 1)
+            event_cursor = _coerce_int(state.get("event_cursor"), event_base_cursor - 1)
+            # If the cursor appears to reset, reset our sender cursor too.
+            if event_cursor < last_sent_cursor:
+                last_sent_cursor = 0
 
-            for payload in event_payloads[seen_event_count:]:
-                seen_event_count += 1
+            delta_payloads, updated_last_sent = _compute_event_delta(
+                events=event_payloads,
+                base_cursor=event_base_cursor,
+                last_sent_cursor=last_sent_cursor,
+            )
+
+            for payload in delta_payloads:
                 if not isinstance(payload, dict):
                     continue
                 try:
                     yield SSEEvent.parse_payload(payload).to_payload()
                 except Exception:
                     continue
+
+            last_sent_cursor = max(last_sent_cursor, updated_last_sent)
     except asyncio.CancelledError:
         raise
     except TimeoutError:
