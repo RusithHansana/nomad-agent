@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from datetime import UTC, datetime
 
-from src.agent.state import AgentState
+from src.agent.state import AgentState, append_event_to_buffer, get_event_buffer
 from src.models.events import ThoughtLogData, ThoughtLogEvent
 from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 
@@ -299,16 +299,18 @@ async def compiler_node(state: AgentState) -> AgentState:
         str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
     )
     duration_days = max(1, _as_int(state.get("duration_days", 1)) or 1)
-    raw_events = state.get("events")
-    events = list(raw_events) if isinstance(raw_events, list) else []
-    events.append(
-        ThoughtLogEvent(
+    events, event_cursor, event_base_cursor = get_event_buffer(state)
+    events, event_cursor, event_base_cursor = append_event_to_buffer(
+        events=events,
+        event_cursor=event_cursor,
+        event_base_cursor=event_base_cursor,
+        payload=ThoughtLogEvent(
             timestamp=datetime.now(UTC).isoformat(),
             data=ThoughtLogData(
                 message="Compiling itinerary",
                 step="compiler",
             ),
-        ).to_payload()
+        ).to_payload(),
     )
 
     venues: list[Venue] = []
@@ -344,19 +346,24 @@ async def compiler_node(state: AgentState) -> AgentState:
         cost_summary=cost_summary,
         generated_at=datetime.now(UTC).isoformat(),
     )
-    events.append(
-        ThoughtLogEvent(
+    events, event_cursor, event_base_cursor = append_event_to_buffer(
+        events=events,
+        event_cursor=event_cursor,
+        event_base_cursor=event_base_cursor,
+        payload=ThoughtLogEvent(
             timestamp=datetime.now(UTC).isoformat(),
             data=ThoughtLogData(
                 message="Itinerary complete",
                 icon="🎉",
                 step="compiler",
             ),
-        ).to_payload()
+        ).to_payload(),
     )
 
     return {
         **state,
+        "event_cursor": event_cursor,
+        "event_base_cursor": event_base_cursor,
         "events": events,
         "itinerary_response": itinerary.model_dump(exclude_none=True),
     }

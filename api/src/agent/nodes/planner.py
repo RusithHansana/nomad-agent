@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
-from src.agent.state import MAX_TASKS, AgentState
+from src.agent.state import MAX_TASKS, AgentState, append_event_to_buffer, get_event_buffer
 from src.models.events import ErrorData, ErrorEvent, ThoughtLogData, ThoughtLogEvent
 
 DEFAULT_INTEREST_CATEGORIES = ["food", "culture", "nature"]
@@ -155,16 +155,19 @@ async def planner_node(state: AgentState) -> AgentState:
     duration_days = _extract_duration_days(prompt)
     interest_categories = _extract_interest_categories(prompt)
     tasks = _build_research_tasks(destination, interest_categories)
-    raw_events = state.get("events")
-    events = list(raw_events) if isinstance(raw_events, list) else []
-    events.append(
-        ThoughtLogEvent(
+
+    events, event_cursor, event_base_cursor = get_event_buffer(state)
+    events, event_cursor, event_base_cursor = append_event_to_buffer(
+        events=events,
+        event_cursor=event_cursor,
+        event_base_cursor=event_base_cursor,
+        payload=ThoughtLogEvent(
             timestamp=datetime.now(UTC).isoformat(),
             data=ThoughtLogData(
                 message="Parsed prompt and planned tasks",
                 step="planner",
             ),
-        ).to_payload()
+        ).to_payload(),
     )
 
     return {
@@ -173,6 +176,8 @@ async def planner_node(state: AgentState) -> AgentState:
         "duration_days": duration_days,
         "interest_categories": interest_categories,
         "tasks": tasks,
+        "event_cursor": event_cursor,
+        "event_base_cursor": event_base_cursor,
         "events": events,
         "task_results": state.get("task_results", {}),
         "error_event": None,

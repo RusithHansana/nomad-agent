@@ -35,6 +35,8 @@ async def generate_itinerary_response(prompt: str) -> dict[str, object]:
         "interest_categories": [],
         "tasks": [],
         "tavily_calls_made": 0,
+        "event_cursor": 0,
+        "event_base_cursor": 1,
         "events": [],
         "task_results": {},
         "error_event": None,

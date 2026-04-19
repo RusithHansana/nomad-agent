@@ -9,6 +9,8 @@ from src.agent.state import (
     MAX_SEARCH_ITERATIONS_PER_TASK,
     MAX_TAVILY_CALLS,
     AgentState,
+    append_event_to_buffer,
+    get_event_buffer,
 )
 from src.agent.tools.tavily_search import (
     TavilyCallLimitExceededError,
@@ -144,9 +146,12 @@ async def researcher_node(
         return state
 
     tool = search_tool or TavilySearchTool()
-    current_calls = int(state.get("tavily_calls_made", 0))
-    events = list(state.get("events", []))
-    task_results = dict(state.get("task_results", {}))
+    current_calls = _safe_int(state.get("tavily_calls_made", 0), 0)
+    events, event_cursor, event_base_cursor = get_event_buffer(state)
+
+    raw_task_results = state.get("task_results", {})
+    task_results = dict(raw_task_results) if isinstance(raw_task_results, dict) else {}
+
     tasks = state.get("tasks", [])
     task_list = tasks if isinstance(tasks, list) else []
     destination = _normalize_text(
@@ -182,21 +187,28 @@ async def researcher_node(
                 break
             attempted_queries.add(current_query)
 
-            events.append(
-                ThoughtLogEvent(
+            events, event_cursor, event_base_cursor = append_event_to_buffer(
+                events=events,
+                event_cursor=event_cursor,
+                event_base_cursor=event_base_cursor,
+                payload=ThoughtLogEvent(
                     timestamp=datetime.now(UTC).isoformat(),
                     data=ThoughtLogData(
                         message=f"Searching {task_name}",
                         step="researcher",
                     ),
-                ).to_payload()
+                ).to_payload(),
             )
 
-            previous_tool_calls = _safe_int(getattr(tool, "calls_made", 0), 0)
+            previous_tool_calls = _safe_int(
+                getattr(tool, "calls_made", current_calls),
+                current_calls,
+            )
 
             try:
                 results = await tool.search(current_query, max_results=MAX_RESULTS_PER_TASK)
             except TavilyCallLimitExceededError:
+                current_calls = MAX_TAVILY_CALLS
                 break
             except TavilyUnavailableError:
                 latest_tool_calls = _safe_int(
@@ -207,10 +219,16 @@ async def researcher_node(
                 if call_increment <= 0:
                     call_increment = 1
                 current_calls = min(MAX_TAVILY_CALLS, current_calls + call_increment)
-                # Degrade this task gracefully and continue with remaining tasks.
+
                 if best_results_for_task:
                     best_results_for_task = _mark_results_unverified(best_results_for_task)
-                events.append(_build_tavily_unavailable_event(task_name))
+
+                events, event_cursor, event_base_cursor = append_event_to_buffer(
+                    events=events,
+                    event_cursor=event_cursor,
+                    event_base_cursor=event_base_cursor,
+                    payload=_build_tavily_unavailable_event(task_name),
+                )
                 results_for_task = []
                 break
 
@@ -226,7 +244,6 @@ async def researcher_node(
             results_for_task = [
                 item for item in results[:MAX_RESULTS_PER_TASK] if isinstance(item, dict)
             ]
-
             if len(results_for_task) > len(best_results_for_task):
                 best_results_for_task = results_for_task
 
@@ -250,22 +267,32 @@ async def researcher_node(
                     reason=reason,
                 ),
             )
-            events.append(event.to_payload())
+            events, event_cursor, event_base_cursor = append_event_to_buffer(
+                events=events,
+                event_cursor=event_cursor,
+                event_base_cursor=event_base_cursor,
+                payload=event.to_payload(),
+            )
             current_query = broadened_query
 
         task_results[task_name] = best_results_for_task or results_for_task
-        events.append(
-            ThoughtLogEvent(
+        events, event_cursor, event_base_cursor = append_event_to_buffer(
+            events=events,
+            event_cursor=event_cursor,
+            event_base_cursor=event_base_cursor,
+            payload=ThoughtLogEvent(
                 timestamp=datetime.now(UTC).isoformat(),
                 data=ThoughtLogData(
                     message=f"Found {len(task_results[task_name])} results for {task_name}",
                     step="researcher",
                 ),
-            ).to_payload()
+            ).to_payload(),
         )
 
     return {
         **state,
+        "event_cursor": event_cursor,
+        "event_base_cursor": event_base_cursor,
         "events": events,
         "task_results": task_results,
         "tavily_calls_made": current_calls,
