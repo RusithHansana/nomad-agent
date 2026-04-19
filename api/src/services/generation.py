@@ -43,7 +43,7 @@ async def generate_itinerary_response(prompt: str) -> dict[str, object]:
 
     try:
         final_state = await asyncio.wait_for(
-            graph.invoke(initial_state),
+            graph.ainvoke(initial_state),
             timeout=GENERATION_TIMEOUT_SECONDS,
         )
     except TimeoutError as exc:
