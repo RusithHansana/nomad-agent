@@ -91,10 +91,10 @@ void main() {
 
       await tester.tap(find.text('Map'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 850));
+      await tester.pump(const Duration(milliseconds: 1600));
 
       await tester.tap(find.byKey(const ValueKey<String>('map-pin-1')));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 450));
 
       expect(find.text('Tea House'), findsOneWidget);
       expect(find.text('Open daily 09:00-21:00'), findsOneWidget);
@@ -129,7 +129,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
       expect(routeLayerFinder, findsNothing);
 
-      await tester.pump(const Duration(milliseconds: 1500));
+      await tester.pump(const Duration(milliseconds: 1800));
       expect(routeLayerFinder, findsOneWidget);
     });
 

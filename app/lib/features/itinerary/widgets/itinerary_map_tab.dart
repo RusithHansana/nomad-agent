@@ -31,6 +31,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
   static const int _pinMaxStaggerDelayMs = 1900;
   static const int _pinFadeInDurationMs = 260;
   static const int _routeRevealBufferMs = 120;
+  static final Tween<double> _routeFadeTween = Tween<double>(begin: 0, end: 1);
 
   final MapController _mapController = MapController();
   late List<_OrderedVenue> _orderedVenues;
@@ -80,7 +81,9 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
         )
         .map((item) => LatLng(item.venue.latitude, item.venue.longitude))
         .toList(growable: false);
-    final routePolylines = _buildRoutePolylines();
+    final routePolylines = _showRoutes
+        ? _buildRoutePolylines()
+        : const <Polyline>[];
 
     return Stack(
       children: [
@@ -102,7 +105,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
               KeyedSubtree(
                 key: const ValueKey<String>('map-route-layer'),
                 child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: 1),
+                  tween: _routeFadeTween,
                   duration: const Duration(milliseconds: 280),
                   curve: Curves.easeOut,
                   builder: (context, opacity, child) {
@@ -146,7 +149,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
                 margin: const EdgeInsets.all(AppSpacing.md),
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: 0.92),
+                  color: AppColors.surface.withOpacity(0.92),
                   borderRadius: BorderRadius.circular(AppSpacing.sm),
                 ),
                 child: Text(
@@ -249,7 +252,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
             LatLng(end.latitude, end.longitude),
           ],
           strokeWidth: 4,
-          color: AppColors.primaryVariant.withValues(alpha: 0.62),
+          color: AppColors.primaryVariant.withOpacity(0.62),
           strokeCap: StrokeCap.round,
         ),
       );
@@ -320,6 +323,9 @@ class _VenueDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final openingHoursLine = _openingHoursLine(venue.openingHours);
     final badgeType = _badgeTypeForVenue(venue);
+    final ratingLine = venue.rating == null
+        ? 'Rating unavailable'
+        : '★ ${venue.rating!.toStringAsFixed(1)}';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -328,29 +334,33 @@ class _VenueDetailSheet extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.lg,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            venue.name,
-            style: AppTypography.h3(color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            openingHoursLine,
-            style: AppTypography.bodySmall(color: AppColors.textSecondary),
-          ),
-          if (venue.rating != null) ...[
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              venue.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.h3(color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              openingHoursLine,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.bodySmall(color: AppColors.textSecondary),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '★ ${venue.rating!.toStringAsFixed(1)}',
+              ratingLine,
               style: AppTypography.body(color: AppColors.textPrimary),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            VerificationBadge(type: badgeType, sourceUrl: venue.sourceUrl),
           ],
-          const SizedBox(height: AppSpacing.sm),
-          VerificationBadge(type: badgeType, sourceUrl: venue.sourceUrl),
-        ],
+        ),
       ),
     );
   }
@@ -376,9 +386,10 @@ class _VenueDetailSheet extends StatelessWidget {
     }
 
     final openingHours = venue.openingHours;
+    final closedPattern = RegExp(r'\bclosed\b', caseSensitive: false);
     final hasClosedLabel =
         openingHours != null &&
-        openingHours.any((line) => line.toLowerCase().contains('closed'));
+        openingHours.any((line) => closedPattern.hasMatch(line));
     if (hasClosedLabel) {
       return VerificationBadgeType.closed;
     }
