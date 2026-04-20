@@ -29,6 +29,8 @@ Verify: `curl http://localhost:8000/api/v1/health` → `{"status": "ok"}`
 
 ```bash
 cd app
+# To access localhost 8000
+adb reverse tcp:8000 tcp:8000
 flutter pub get
 flutter run
 ```
