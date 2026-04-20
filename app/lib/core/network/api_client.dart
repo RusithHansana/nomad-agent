@@ -2,11 +2,11 @@ import 'package:dio/dio.dart';
 
 import 'api_interceptor.dart';
 
-/// Environment constants supplied via `--dart-define`.
+/// Environment constants supplied via `--dart-define-from-file`.
 ///
 /// Local run example:
 /// ```
-/// flutter run --dart-define=API_BASE_URL=http://localhost:8000 --dart-define=API_KEY=change-me
+/// flutter run --dart-define-from-file=.env
 /// ```
 class EnvConfig {
   EnvConfig._();
