@@ -5,7 +5,7 @@ from typing import TypedDict
 MAX_TASKS = 3
 MAX_RESULTS_PER_TASK = 3
 MAX_TAVILY_CALLS = 9
-GENERATION_TIMEOUT_SECONDS = 30
+GENERATION_TIMEOUT_SECONDS = 60
 MAX_SEARCH_ITERATIONS_PER_TASK = 5
 
 # SSE streaming state is built around a bounded event buffer.
