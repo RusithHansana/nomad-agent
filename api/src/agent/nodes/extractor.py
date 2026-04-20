@@ -15,6 +15,7 @@ VENUE_TASK_NAMES = {"local research", "event checking"}
 MAX_RAW_CONTENT_CHARS = 1500
 MAX_CONTENT_CHARS = 800
 MAX_VENUES_PER_GENERATION = 15
+EXTRACTION_MODEL = "gemini-2.5-flash"
 
 EXTRACTION_PROMPT = """You are a travel data extraction assistant. Given web search results about places in {destination}, extract structured venue information.
 
@@ -164,7 +165,7 @@ def _enrich_venues_with_source(
 
 
 async def _call_gemini(prompt: str) -> str | None:
-    """Call Gemini 2.0 Flash for venue extraction. Returns response text or None on failure."""
+    """Call LLM for venue extraction. Returns response text or None on failure."""
     settings = get_settings()
     if not settings.gemini_api_key:
         logger.warning("Gemini API key not configured — skipping extraction")
@@ -175,7 +176,7 @@ async def _call_gemini(prompt: str) -> str | None:
 
         client = genai.Client(api_key=settings.gemini_api_key)
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model=EXTRACTION_MODEL,
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 temperature=0.1,
