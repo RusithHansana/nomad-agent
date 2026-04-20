@@ -149,12 +149,14 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
                 margin: const EdgeInsets.all(AppSpacing.md),
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withOpacity(0.92),
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(AppSpacing.sm),
                 ),
                 child: Text(
                   'Map unavailable for this itinerary yet.',
-                  style: AppTypography.body(color: AppColors.textSecondary),
+                  style: AppTypography.body(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ),
@@ -252,7 +254,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
             LatLng(end.latitude, end.longitude),
           ],
           strokeWidth: 4,
-          color: AppColors.primaryVariant.withOpacity(0.62),
+          color: AppColors.primaryVariant.withValues(alpha: 0.62),
           strokeCap: StrokeCap.round,
         ),
       );
@@ -266,7 +268,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
       context: context,
       showDragHandle: true,
       useSafeArea: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppSpacing.xl),
@@ -327,6 +329,8 @@ class _VenueDetailSheet extends StatelessWidget {
         ? 'Rating unavailable'
         : '★ ${venue.rating!.toStringAsFixed(1)}';
 
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -343,19 +347,21 @@ class _VenueDetailSheet extends StatelessWidget {
               venue.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.h3(color: AppColors.textPrimary),
+              style: AppTypography.h3(color: colorScheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               openingHoursLine,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodySmall(color: AppColors.textSecondary),
+              style: AppTypography.bodySmall(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               ratingLine,
-              style: AppTypography.body(color: AppColors.textPrimary),
+              style: AppTypography.body(color: colorScheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.sm),
             VerificationBadge(type: badgeType, sourceUrl: venue.sourceUrl),

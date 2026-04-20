@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_spacing.dart';
 import '../../core/models/itinerary.dart';
-import '../../core/theme/app_colors.dart';
+
 import '../../core/theme/app_typography.dart';
 import 'providers/itinerary_store_provider.dart';
 import 'widgets/cost_summary_section.dart';
@@ -31,6 +31,7 @@ class ItineraryScreen extends ConsumerWidget {
     );
 
     if (itinerary == null) {
+      final colorScheme = Theme.of(context).colorScheme;
       return Scaffold(
         appBar: AppBar(title: const Text('Itinerary')),
         body: Center(
@@ -41,13 +42,13 @@ class ItineraryScreen extends ConsumerWidget {
               children: [
                 Text(
                   'Itinerary not found.',
-                  style: AppTypography.h3(color: AppColors.textPrimary),
+                  style: AppTypography.h3(color: colorScheme.onSurface),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Please return and generate a new trip.',
                   textAlign: TextAlign.center,
-                  style: AppTypography.body(color: AppColors.textSecondary),
+                  style: AppTypography.body(color: colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 OutlinedButton(

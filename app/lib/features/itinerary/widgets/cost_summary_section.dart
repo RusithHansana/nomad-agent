@@ -1,6 +1,6 @@
 import 'package:app/core/constants/app_spacing.dart';
 import 'package:app/core/models/itinerary.dart';
-import 'package:app/core/theme/app_colors.dart';
+
 import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +11,7 @@ class CostSummarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final foodDisplay = _formatOptionalCost(costSummary.food);
     final entertainmentDisplay = _formatOptionalCost(costSummary.entertainment);
     final transportDisplay = _formatOptionalCost(costSummary.transport);
@@ -28,7 +29,7 @@ class CostSummarySection extends StatelessWidget {
           children: [
             Text(
               'Cost Summary',
-              style: AppTypography.h3(color: AppColors.textPrimary),
+              style: AppTypography.h3(color: colorScheme.onSurface),
             ),
             const SizedBox(height: AppSpacing.sm),
             _CostSummaryRow(label: 'Food', value: foodDisplay.value),
@@ -51,7 +52,9 @@ class CostSummarySection extends StatelessWidget {
                 padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Text(
                   'ⓘ Some category totals are currently unavailable.',
-                  style: AppTypography.caption(color: AppColors.textSecondary),
+                  style: AppTypography.caption(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
           ],
@@ -100,9 +103,10 @@ class _CostSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final style = emphasize
-        ? AppTypography.body(color: AppColors.textPrimary)
-        : AppTypography.bodySmall(color: AppColors.textSecondary);
+        ? AppTypography.body(color: colorScheme.onSurface)
+        : AppTypography.bodySmall(color: colorScheme.onSurfaceVariant);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
@@ -124,8 +128,8 @@ class _CostSummaryRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: emphasize
-                  ? AppTypography.body(color: AppColors.textPrimary)
-                  : AppTypography.bodySmall(color: AppColors.textPrimary),
+                  ? AppTypography.body(color: colorScheme.onSurface)
+                  : AppTypography.bodySmall(color: colorScheme.onSurface),
             ),
           ),
         ],

@@ -75,7 +75,7 @@ class _MapVenuePinState extends State<MapVenuePin> {
             border: Border.all(color: AppColors.onSecondary, width: 2),
             boxShadow: [
               BoxShadow(
-                color: AppColors.textPrimary.withValues(alpha: 0.13),
+                color: Colors.black.withValues(alpha: 0.13),
                 blurRadius: 6,
                 offset: Offset(0, 2),
               ),

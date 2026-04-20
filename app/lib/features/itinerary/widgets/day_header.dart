@@ -1,6 +1,6 @@
 import 'package:app/core/constants/app_spacing.dart';
 import 'package:app/core/models/itinerary.dart';
-import 'package:app/core/theme/app_colors.dart';
+
 import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -12,13 +12,14 @@ class DayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final stops = dayPlan.venues.length;
     final estimatedCost = dayPlan.estimatedDayCost;
 
     return SizedBox(
       width: double.infinity,
       child: Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: colorScheme.surface,
         elevation: 1,
         borderRadius: BorderRadius.circular(AppSpacing.md),
         child: Padding(
@@ -28,7 +29,7 @@ class DayHeader extends StatelessWidget {
             children: [
               Text(
                 _dayLabel(dayPlan),
-                style: AppTypography.h2(color: AppColors.textPrimary),
+                style: AppTypography.h2(color: colorScheme.onSurface),
               ),
               const SizedBox(height: AppSpacing.xs),
               Row(
@@ -36,7 +37,7 @@ class DayHeader extends StatelessWidget {
                   Text(
                     '$stops stops',
                     style: AppTypography.bodySmall(
-                      color: AppColors.textSecondary,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -44,7 +45,7 @@ class DayHeader extends StatelessWidget {
                     Text(
                       _formatDayCost(estimatedCost),
                       style: AppTypography.bodySmall(
-                        color: AppColors.textSecondary,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                 ],
