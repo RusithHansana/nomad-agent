@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import UTC, datetime
 
 from src.agent.state import AgentState, append_event_to_buffer, get_event_buffer
@@ -10,6 +11,9 @@ from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 HOURS_UNVERIFIED_NOTE = "⚠️ Hours unverified — recommend calling ahead"
 VENUE_TASK_NAMES = {"local research", "event checking"}
 TIME_SLOTS = ("morning", "midday", "afternoon", "evening")
+MAX_VENUE_NAME_LENGTH = 120
+MAX_ADDRESS_LENGTH = 200
+_URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
 PRICE_LEVEL_COST_MAP = {
     1: 15.0,
     2: 30.0,
@@ -107,18 +111,23 @@ def _extract_opening_hours(raw: dict[str, object]) -> list[str] | None:
     return None
 
 
+def _strip_urls(text: str) -> str:
+    """Remove HTTP(S) URLs from text."""
+    return _URL_PATTERN.sub("", text).strip()
+
+
 def _map_result_to_venue(raw: dict[str, object]) -> Venue:
-    name = str(raw.get("name") or raw.get("title") or "Unknown Venue").strip() or "Unknown Venue"
-    address = (
+    raw_name = str(raw.get("name") or raw.get("title") or "Unknown Venue").strip() or "Unknown Venue"
+    name = raw_name[:MAX_VENUE_NAME_LENGTH].strip()
+    raw_address = (
         str(
             raw.get("address")
             or raw.get("location")
-            or raw.get("raw_content")
-            or raw.get("content")
             or "Address unavailable"
         ).strip()
         or "Address unavailable"
     )
+    address = _strip_urls(raw_address)[:MAX_ADDRESS_LENGTH].strip() or "Address unavailable"
     source_url = raw.get("source_url") or raw.get("url")
     source_url_str = str(source_url).strip() if source_url else None
 

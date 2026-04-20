@@ -3,7 +3,12 @@ from typing import Any, cast
 
 import pytest
 
-from src.agent.nodes.compiler import HOURS_UNVERIFIED_NOTE, compiler_node
+from src.agent.nodes.compiler import (
+    HOURS_UNVERIFIED_NOTE,
+    MAX_ADDRESS_LENGTH,
+    MAX_VENUE_NAME_LENGTH,
+    compiler_node,
+)
 from src.agent.state import AgentState
 
 
@@ -325,3 +330,124 @@ async def test_compiler_treats_string_false_degraded_flag_as_false() -> None:
     venue = itinerary["days"][0]["venues"][0]
     assert venue["is_verified"] is True
     assert venue.get("verification_note") is None
+
+
+@pytest.mark.asyncio
+async def test_compiler_truncates_long_venue_name() -> None:
+    long_name = "A" * 200
+    state = {
+        "prompt": "trip",
+        "destination": "Lisbon",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": long_name,
+                    "address": "Main Street",
+                    "url": "https://example.com/place",
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    venue = itinerary["days"][0]["venues"][0]
+    assert len(venue["name"]) <= MAX_VENUE_NAME_LENGTH
+
+
+@pytest.mark.asyncio
+async def test_compiler_truncates_long_address() -> None:
+    long_address = "B" * 300
+    state = {
+        "prompt": "trip",
+        "destination": "Lisbon",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": "Cafe",
+                    "address": long_address,
+                    "url": "https://example.com/place",
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    venue = itinerary["days"][0]["venues"][0]
+    assert len(venue["address"]) <= MAX_ADDRESS_LENGTH
+
+
+@pytest.mark.asyncio
+async def test_compiler_strips_urls_from_address() -> None:
+    state = {
+        "prompt": "trip",
+        "destination": "Lisbon",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": "Cafe",
+                    "address": "123 Main St https://example.com/image.jpg near the park",
+                    "url": "https://example.com/place",
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    venue = itinerary["days"][0]["venues"][0]
+    assert "https://" not in venue["address"]
+    assert "Main St" in venue["address"]
+
+
+@pytest.mark.asyncio
+async def test_compiler_does_not_use_raw_content_as_address_fallback() -> None:
+    state = {
+        "prompt": "trip",
+        "destination": "Lisbon",
+        "duration_days": 1,
+        "interest_categories": ["food"],
+        "tasks": [],
+        "tavily_calls_made": 1,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": "Cafe",
+                    "raw_content": "Full page scrape with lots of text and URLs",
+                    "content": "Short snippet about the cafe",
+                    "url": "https://example.com/place",
+                }
+            ]
+        },
+        "error_event": None,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    venue = itinerary["days"][0]["venues"][0]
+    assert venue["address"] == "Address unavailable"
+    assert "Full page scrape" not in venue["address"]
