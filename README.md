@@ -32,7 +32,7 @@ cd app
 # To access localhost 8000
 adb reverse tcp:8000 tcp:8000
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=.env
 ```
 
 ## Environment Variables

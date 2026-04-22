@@ -11,6 +11,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'map_venue_pin.dart';
 import 'verification_badge.dart';
+import 'venue_type_label.dart';
 
 class ItineraryMapTab extends StatefulWidget {
   const ItineraryMapTab({
@@ -135,6 +136,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
                           number: item.order,
                           isVerified: item.venue.isVerified,
                           index: item.order - 1,
+                          venueType: item.venue.venueType,
                         ),
                       ),
                     ),
@@ -363,6 +365,15 @@ class _VenueDetailSheet extends StatelessWidget {
               ratingLine,
               style: AppTypography.body(color: colorScheme.onSurface),
             ),
+            const SizedBox(height: AppSpacing.xs),
+            if (venue.venueType != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: VenueTypeLabel(
+                  type: venue.venueType!,
+                  color: colorScheme.onSurface,
+                ),
+              ),
             const SizedBox(height: AppSpacing.sm),
             VerificationBadge(type: badgeType, sourceUrl: venue.sourceUrl),
           ],

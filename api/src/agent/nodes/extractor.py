@@ -16,7 +16,7 @@ VENUE_TASK_NAMES = {"local research", "event checking", "interest deep-dive"}
 MAX_RAW_CONTENT_CHARS = 6000
 MAX_CONTENT_CHARS = 800
 MAX_VENUES_PER_GENERATION = 15
-EXTRACTION_MODEL = "gemini-2.5-flash"
+EXTRACTION_MODEL = "gemini-3.0-flash"
 
 EXTRACTION_PROMPT = (
     "You are a travel data extraction assistant. "
