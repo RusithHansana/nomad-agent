@@ -9,7 +9,7 @@ from src.models.events import ThoughtLogData, ThoughtLogEvent
 from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 
 HOURS_UNVERIFIED_NOTE = "⚠️ Hours unverified — recommend calling ahead"
-VENUE_TASK_NAMES = {"local research", "event checking"}
+VENUE_TASK_NAMES = {"local research", "event checking", "interest deep-dive"}
 TIME_SLOTS = ("morning", "midday", "afternoon", "evening")
 MAX_VENUE_NAME_LENGTH = 120
 MAX_ADDRESS_LENGTH = 200
@@ -36,6 +36,49 @@ FOOD_KEYWORDS = {
     "pub",
     "food",
 }
+
+VERIFICATION_WEIGHTS: dict[str, dict[str, float]] = {
+    "restaurant": {
+        "source_url": 0.25,
+        "address": 0.25,
+        "opening_hours": 0.20,
+        "rating": 0.15,
+        "coordinates": 0.15,
+    },
+    "attraction": {
+        "source_url": 0.30,
+        "address": 0.20,
+        "opening_hours": 0.15,
+        "rating": 0.20,
+        "coordinates": 0.15,
+    },
+    "nature": {
+        "source_url": 0.40,
+        "address": 0.10,
+        "opening_hours": 0.05,
+        "rating": 0.10,
+        "coordinates": 0.35,
+    },
+    "event": {
+        "source_url": 0.35,
+        "address": 0.20,
+        "opening_hours": 0.10,
+        "rating": 0.10,
+        "coordinates": 0.25,
+    },
+    "tour": {
+        "source_url": 0.35,
+        "address": 0.15,
+        "opening_hours": 0.10,
+        "rating": 0.25,
+        "coordinates": 0.15,
+    },
+}
+
+VERIFICATION_THRESHOLD = 0.5
+DEGRADED_PENALTY = 0.3
+DEFAULT_VENUE_TYPE = "attraction"
+VALID_VENUE_TYPES = set(VERIFICATION_WEIGHTS.keys())
 
 
 def _as_float(value: object, default: float = 0.0) -> float:
@@ -111,13 +154,41 @@ def _extract_opening_hours(raw: dict[str, object]) -> list[str] | None:
     return None
 
 
+def _compute_verification_score(
+    venue_type: str,
+    source_url: str | None,
+    address: str,
+    opening_hours: list[str] | None,
+    rating: float | None,
+    has_coordinates: bool,
+    force_unverified: bool,
+) -> float:
+    """Compute a 0.0–1.0 confidence score using type-specific weights."""
+    weights = VERIFICATION_WEIGHTS.get(venue_type, VERIFICATION_WEIGHTS[DEFAULT_VENUE_TYPE])
+
+    score = sum([
+        weights["source_url"] if source_url else 0,
+        weights["address"] if address != "Address unavailable" else 0,
+        weights["opening_hours"] if opening_hours else 0,
+        weights["rating"] if rating is not None else 0,
+        weights["coordinates"] if has_coordinates else 0,
+    ])
+
+    if force_unverified:
+        score = max(0.0, score - DEGRADED_PENALTY)
+
+    return round(score, 2)
+
+
 def _strip_urls(text: str) -> str:
     """Remove HTTP(S) URLs from text."""
     return _URL_PATTERN.sub("", text).strip()
 
 
 def _map_result_to_venue(raw: dict[str, object]) -> Venue:
-    raw_name = str(raw.get("name") or raw.get("title") or "Unknown Venue").strip() or "Unknown Venue"
+    raw_name = str(
+        raw.get("name") or raw.get("title") or "Unknown Venue"
+    ).strip() or "Unknown Venue"
     name = raw_name[:MAX_VENUE_NAME_LENGTH].strip()
     raw_address = (
         str(
@@ -136,27 +207,40 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     rating_value = rating if rating > 0 else None
     price_level = _normalize_price_level(raw.get("price_level") or raw.get("price"))
 
-    has_structured_details = bool(
-        address != "Address unavailable" or opening_hours or rating_value is not None
-    )
+    venue_type = str(raw.get("venue_type") or DEFAULT_VENUE_TYPE).strip().lower()
+    if venue_type not in VALID_VENUE_TYPES:
+        venue_type = DEFAULT_VENUE_TYPE
 
-    hours_verified = opening_hours is not None
     force_unverified = _as_bool(raw.get("_degraded_unverified"), default=False)
-    is_verified = bool(
-        source_url_str and has_structured_details and hours_verified and not force_unverified
+    has_coords = not (
+        _as_float(raw.get("latitude") or raw.get("lat"), default=0.0) == 0.0
+        and _as_float(raw.get("longitude") or raw.get("lng") or raw.get("lon"), default=0.0) == 0.0
     )
 
-    if not hours_verified:
-        verification_note = HOURS_UNVERIFIED_NOTE
-    elif force_unverified:
+    confidence = _compute_verification_score(
+        venue_type=venue_type,
+        source_url=source_url_str,
+        address=address,
+        opening_hours=opening_hours,
+        rating=rating_value,
+        has_coordinates=has_coords,
+        force_unverified=force_unverified,
+    )
+
+    is_verified = confidence >= VERIFICATION_THRESHOLD
+
+    if force_unverified:
         verification_note = "Limited source confidence"
+    elif not is_verified:
+        verification_note = HOURS_UNVERIFIED_NOTE
     else:
-        verification_note = None if is_verified else "Limited source confidence"
+        verification_note = None
 
     estimated_cost = PRICE_LEVEL_COST_MAP.get(price_level) if price_level is not None else None
 
     return Venue(
         name=name,
+        venue_type=venue_type,
         address=address,
         latitude=_as_float(raw.get("latitude") or raw.get("lat"), default=0.0),
         longitude=_as_float(raw.get("longitude") or raw.get("lng") or raw.get("lon"), default=0.0),
@@ -164,10 +248,67 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
         rating=rating_value,
         price_level=price_level,
         estimated_cost=estimated_cost,
+        time_slot=None,
         source_url=source_url_str,
         is_verified=is_verified,
         verification_note=verification_note,
     )
+
+
+def _normalize_venue_name(name: str) -> str:
+    """Normalize venue name for deduplication matching."""
+    return re.sub(r"[^a-z0-9\s]", "", name.lower()).strip()
+
+
+def _deduplicate_venues(venues: list[Venue]) -> list[Venue]:
+    """Merge duplicate venues by normalized name, preferring richer data."""
+    seen: dict[str, Venue] = {}
+
+    for venue in venues:
+        key = _normalize_venue_name(venue.name)
+        if not key:
+            seen[f"_unnamed_{id(venue)}"] = venue
+            continue
+
+        if key not in seen:
+            seen[key] = venue
+            continue
+
+        # Merge: prefer non-default / non-null values
+        existing = seen[key]
+        merged_updates: dict[str, object] = {}
+
+        # Prefer non-zero coordinates
+        if not _has_valid_coordinates(existing) and _has_valid_coordinates(venue):
+            merged_updates["latitude"] = venue.latitude
+            merged_updates["longitude"] = venue.longitude
+
+        # Prefer non-default address
+        if existing.address == "Address unavailable" and venue.address != "Address unavailable":
+            merged_updates["address"] = venue.address
+
+        # Prefer existing opening_hours, or take new if missing
+        if not existing.opening_hours and venue.opening_hours:
+            merged_updates["opening_hours"] = venue.opening_hours
+
+        # Prefer higher rating
+        if (venue.rating or 0) > (existing.rating or 0):
+            merged_updates["rating"] = venue.rating
+
+        # Prefer non-null price_level
+        if existing.price_level is None and venue.price_level is not None:
+            merged_updates["price_level"] = venue.price_level
+            merged_updates["estimated_cost"] = venue.estimated_cost
+
+        # Prefer verified
+        if not existing.is_verified and venue.is_verified:
+            merged_updates["is_verified"] = venue.is_verified
+            merged_updates["verification_note"] = venue.verification_note
+
+        if merged_updates:
+            seen[key] = existing.model_copy(update=merged_updates)
+
+    return list(seen.values())
 
 
 def _distribute_venues_by_day(venues: list[Venue], duration_days: int) -> list[DayPlan]:
@@ -332,6 +473,7 @@ async def compiler_node(state: AgentState) -> AgentState:
             if isinstance(entry, dict):
                 venues.append(_map_result_to_venue(entry))
 
+    venues = _deduplicate_venues(venues)
     days = _distribute_venues_by_day(venues, duration_days)
     optimized_days: list[DayPlan] = []
     for day in days:

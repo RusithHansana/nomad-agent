@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -26,9 +27,50 @@ from src.models.events import (
     ThoughtLogEvent,
 )
 
+logger = logging.getLogger(__name__)
+
 MAX_DESTINATION_LENGTH = 120
 MAX_TASK_NAME_LENGTH = 80
 MAX_QUERY_LENGTH = 240
+RELEVANCE_THRESHOLD = 0.4
+
+
+def _as_float_safe(value: object, default: float = 0.0) -> float:
+    """Safely coerce a value to float."""
+    if not isinstance(value, (int, float, str)):
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _compute_relevance_score(
+    result: dict[str, object],
+    destination: str,
+) -> float:
+    """Hybrid relevance: Tavily confidence + destination keyword match."""
+    tavily_score = _as_float_safe(result.get("score"), default=0.0)
+    # Tavily component: 50% of total weight
+    tavily_component = min(max(tavily_score, 0.0), 1.0) * 0.5
+
+    dest_lower = destination.lower().strip()
+    dest_words = [w for w in dest_lower.split() if len(w) > 2]
+
+    title = str(result.get("title") or "").lower()
+    url = str(result.get("url") or "").lower()
+    content_snippet = str(result.get("content") or "")[:500].lower()
+    searchable = f"{title} {url} {content_snippet}"
+
+    # Destination component: 50% of total weight
+    if dest_lower in searchable:
+        destination_component = 0.5  # full destination string found
+    elif any(word in searchable for word in dest_words):
+        destination_component = 0.3  # partial match (at least one word)
+    else:
+        destination_component = 0.0  # no destination signal at all
+
+    return tavily_component + destination_component
 
 
 def _normalize_text(value: str, *, max_length: int) -> str:
@@ -244,6 +286,31 @@ async def researcher_node(
             results_for_task = [
                 item for item in results[:MAX_RESULTS_PER_TASK] if isinstance(item, dict)
             ]
+
+            # Tag each result with the query used (for debug dumps)
+            for item in results_for_task:
+                item["_search_query"] = current_query
+
+            # Apply hybrid relevance filtering
+            scored_results: list[dict[str, object]] = []
+            for item in results_for_task:
+                score = _compute_relevance_score(item, destination)
+                item["_relevance_score"] = score
+                if score >= RELEVANCE_THRESHOLD:
+                    scored_results.append(item)
+
+            if not scored_results and results_for_task:
+                # All results below threshold — flag entire batch as degraded
+                scored_results = _mark_results_unverified(results_for_task)
+                logger.warning(
+                    "All results for task '%s' scored below relevance threshold "
+                    "(%.2f). Marking as degraded.",
+                    task_name,
+                    RELEVANCE_THRESHOLD,
+                )
+
+            results_for_task = scored_results
+
             if len(results_for_task) > len(best_results_for_task):
                 best_results_for_task = results_for_task
 

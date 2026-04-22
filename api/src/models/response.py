@@ -10,6 +10,7 @@ class ModelBase(BaseModel):
 
 class Venue(ModelBase):
     name: str
+    venue_type: str | None = None
     address: str
     latitude: float
     longitude: float
