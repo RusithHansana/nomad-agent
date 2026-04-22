@@ -28,17 +28,11 @@ class ThoughtLogEntry {
   final String timestamp;
 }
 
-class GenerationViewState {
-  const GenerationViewState({
-    required this.destinationDisplay,
-    required this.entries,
-    required this.phase,
-    required this.firstEventReceived,
-    required this.showColdStartOverlay,
     required this.elapsedSeconds,
     required this.errorMessage,
     required this.itineraryId,
     required this.hasAttemptedReconnect,
+    this.currentStep,
   });
 
   factory GenerationViewState.initial({required String destinationDisplay}) {
@@ -52,6 +46,7 @@ class GenerationViewState {
       errorMessage: null,
       itineraryId: null,
       hasAttemptedReconnect: false,
+      currentStep: null,
     );
   }
 
@@ -64,21 +59,16 @@ class GenerationViewState {
   final String? errorMessage;
   final String? itineraryId;
   final bool hasAttemptedReconnect;
+  final String? currentStep;
 
   bool get isStreaming => phase == GenerationPhase.streaming;
 
   static const Object _noChange = Object();
 
-  GenerationViewState copyWith({
-    String? destinationDisplay,
-    List<ThoughtLogEntry>? entries,
-    GenerationPhase? phase,
-    bool? firstEventReceived,
-    bool? showColdStartOverlay,
-    int? elapsedSeconds,
     Object? errorMessage = _noChange,
     String? itineraryId,
     bool? hasAttemptedReconnect,
+    String? currentStep,
   }) {
     return GenerationViewState(
       destinationDisplay: destinationDisplay ?? this.destinationDisplay,
@@ -93,6 +83,7 @@ class GenerationViewState {
       itineraryId: itineraryId ?? this.itineraryId,
       hasAttemptedReconnect:
           hasAttemptedReconnect ?? this.hasAttemptedReconnect,
+      currentStep: currentStep ?? this.currentStep,
     );
   }
 }
@@ -274,6 +265,9 @@ class GenerationController
         message: event.message,
         timestamp: event.timestamp,
       );
+      if (event.step != null) {
+        state = state.copyWith(currentStep: event.step);
+      }
       return;
     }
 

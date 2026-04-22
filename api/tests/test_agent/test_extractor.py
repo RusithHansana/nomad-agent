@@ -11,6 +11,7 @@ from src.agent.nodes.extractor import (
     _minify_prompt,
     _parse_extraction_response,
     extractor_node,
+    pre_extractor_node,
 )
 from src.agent.state import AgentState
 
@@ -338,10 +339,22 @@ async def test_extractor_skips_non_venue_tasks() -> None:
 @pytest.mark.asyncio
 async def test_extractor_handles_empty_task_results() -> None:
     state = _make_state({})
-
     result = await extractor_node(state, llm_caller=_success_caller)
-
     assert result["task_results"] == {}
+
+
+@pytest.mark.asyncio
+async def test_pre_extractor_node_emits_initial_event() -> None:
+    state = _make_state({})
+    result = await pre_extractor_node(state)
+
+    thought_logs = [
+        e for e in result["events"]
+        if isinstance(e, dict) and e.get("event_type") == "thought_log"
+    ]
+    assert len(thought_logs) == 1
+    assert "extracting" in thought_logs[0]["data"]["message"].lower()
+    assert thought_logs[0]["data"]["step"] == "extractor"
 
 
 @pytest.mark.asyncio

@@ -352,11 +352,43 @@ async def _call_gemini(prompt: str) -> str | None:
         return None
 
 
+async def pre_extractor_node(state: AgentState) -> dict[str, Any]:
+    """Lightweight node to emit the 'Extracting' event before the heavy LLM work.
+
+    This ensures the UI updates immediately after research ends, avoiding a hang.
+    """
+    if state.get("error_event") is not None:
+        return state
+
+    events, event_cursor, event_base_cursor = get_event_buffer(state)
+
+    events, event_cursor, event_base_cursor = append_event_to_buffer(
+        events=events,
+        event_cursor=event_cursor,
+        event_base_cursor=event_base_cursor,
+        payload=ThoughtLogEvent(
+            timestamp=datetime.now(UTC).isoformat(),
+            data=ThoughtLogData(
+                message="Extracting venue details from search results",
+                icon="🔍",
+                step="extractor",
+            ),
+        ).to_payload(),
+    )
+
+    return {
+        **state,
+        "events": events,
+        "event_cursor": event_cursor,
+        "event_base_cursor": event_base_cursor,
+    }
+
+
 async def extractor_node(
     state: AgentState,
     *,
-    llm_caller: Any | None = None,
-) -> AgentState:
+    llm_caller: Callable[[str], Awaitable[str | None]] | None = None,
+) -> dict[str, Any]:
     """Extract structured venue data from raw Tavily results using Gemini.
 
     Processes each venue task independently to avoid output truncation
@@ -388,20 +420,6 @@ async def extractor_node(
             "event_cursor": event_cursor,
             "event_base_cursor": event_base_cursor,
         }
-
-    events, event_cursor, event_base_cursor = append_event_to_buffer(
-        events=events,
-        event_cursor=event_cursor,
-        event_base_cursor=event_base_cursor,
-        payload=ThoughtLogEvent(
-            timestamp=datetime.now(UTC).isoformat(),
-            data=ThoughtLogData(
-                message="Extracting venue details from search results",
-                icon="🔍",
-                step="extractor",
-            ),
-        ).to_payload(),
-    )
 
     # Log before extraction
     _dump_to_markdown(task_results, "before_extraction")
