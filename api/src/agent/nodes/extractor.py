@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -13,112 +15,161 @@ from src.models.events import ThoughtLogData, ThoughtLogEvent
 logger = logging.getLogger(__name__)
 
 VENUE_TASK_NAMES = {"local research", "event checking", "interest deep-dive"}
-MAX_RAW_CONTENT_CHARS = 6000
+MAX_RAW_CONTENT_CHARS = 3000
 MAX_CONTENT_CHARS = 800
-MAX_VENUES_PER_GENERATION = 15
+MAX_VENUES_PER_TASK = 8
 EXTRACTION_MODEL = "gemini-3-flash-preview"
+
+# Patterns for stripping HTML noise from raw_content
+_STRIP_BLOCK_TAGS_RE = re.compile(
+    r"<(script|style|nav|footer|header|aside|noscript|iframe)[^>]*>.*?</\1>",
+    re.DOTALL | re.IGNORECASE,
+)
+_STRIP_ALL_TAGS_RE = re.compile(r"<[^>]+>")
+_STRIP_URLS_RE = re.compile(r"https?://\S+")
+_COLLAPSE_WHITESPACE_RE = re.compile(r"[ \t]+")
+_COLLAPSE_NEWLINES_RE = re.compile(r"\n{3,}")
+_BOILERPLATE_RE = re.compile(
+    r"(?:cookie|sign\s*up|log\s*in|download\s+(?:our|the)\s+app|"
+    r"subscribe|newsletter|privacy\s+policy|terms\s+of\s+(?:use|service))",
+    re.IGNORECASE,
+)
 
 EXTRACTION_PROMPT = (
     "You are a travel data extraction assistant. "
     "Given web search results about places in {destination}, "
     "extract structured venue information.\n\n"
-    "For each REAL venue, restaurant, attraction, or event "
-    "mentioned, extract:\n"
-    "- name: the actual venue name in English "
-    "(translate or transliterate non-English names)\n"
-    '- venue_type: one of "restaurant", "attraction", '
-    '"nature", "event", "tour"\n'
-    "- address: street address or neighborhood location "
-    "(NOT URLs or page content)\n"
-    "- latitude: decimal latitude if determinable, "
-    "otherwise null\n"
-    "- longitude: decimal longitude if determinable, "
-    "otherwise null\n"
-    '- opening_hours: list of strings like '
-    '["Mon-Fri 9:00-17:00"] if mentioned, otherwise null\n'
-    "- rating: numeric rating out of 5.0 if mentioned, "
-    "otherwise null\n"
-    "- price_level: integer 1-4 (1=budget, 2=moderate, "
-    "3=upscale, 4=luxury) if determinable, otherwise null\n"
-    "- source_url: the exact URL of the search result block "
-    "where this venue was found\n\n"
+    "For each REAL venue, restaurant, attraction, or event mentioned, extract:\n"
+    "- name: actual venue name in English (translate/transliterate non-English names)\n"
+    '- venue_type: one of "restaurant","attraction","nature","event","tour"\n'
+    "- address: street address or neighborhood (NOT URLs)\n"
+    "- latitude: decimal latitude if determinable, else null\n"
+    "- longitude: decimal longitude if determinable, else null\n"
+    "- opening_hours: list of strings e.g. [\"Mon-Fri 9:00-17:00\"] if mentioned, else null\n"
+    "- rating: numeric /5.0 if mentioned, else null\n"
+    "- price_level: 1-4 (1=budget,2=moderate,3=upscale,4=luxury) if determinable, else null\n"
+    "- source_url: exact URL of the search result block where this venue was found\n\n"
+    "CRITICAL — Opening Hours:\n"
+    "Pay special attention to business hours, operating hours, opening times, and schedules. "
+    "Extract these even if in informal formats like '11am-10pm daily' or "
+    "'Lunch: 11:00-15:00, Dinner: 17:00-23:00'. "
+    "If hours appear ANYWHERE in the source text, you MUST extract them.\n\n"
     "Rules:\n"
-    "- Extract ONLY real, named venues — skip aggregator "
-    "pages, listicle headers, generic articles\n"
-    "- A single search result page may describe multiple "
-    "venues — extract them all and use the same "
-    "source_url for each\n"
-    "- For latitude/longitude, use your knowledge of "
-    "well-known venues if coordinates are not in the text\n"
-    "- Always return venue names in English. "
-    "Transliterate or translate non-English names\n"
-    "- Classify venue_type based on what the venue IS, "
-    "not where you found it\n"
-    "- Filter by relevance: only extract venues relevant "
-    'to a trip about "{destination}" — skip unrelated '
-    "businesses like bike rental shops unless the trip "
-    "theme is cycling\n"
-    "- Maximum {max_venues} venues total\n\n"
+    "- Extract ONLY real, named venues — skip aggregator pages and listicle headers\n"
+    "- A single search result may describe multiple venues — extract all with same source_url\n"
+    "- For lat/lng, use your knowledge of well-known venues if not in text\n"
+    "- Venue names must be in English\n"
+    "- Classify venue_type by what the venue IS, not where found\n"
+    "- Only extract venues relevant to a trip about \"{destination}\"\n"
+    "- Maximum {max_venues} venues\n\n"
     "Search results:\n"
     "{results_block}\n\n"
-    "Respond with ONLY a JSON array of venue objects. "
-    "No markdown fencing, no explanation."
+    "Respond with ONLY a compact minified JSON array. "
+    "No whitespace, newlines, indentation, code fences, or explanation."
 )
 
 
-def _format_results_block(
-    task_results: dict[str, list[dict[str, object]]],
-) -> tuple[str, dict[str, list[dict[str, object]]]]:
-    """Build the formatted results text and track which source URLs map to which tasks."""
-    sections: list[str] = []
-    source_map: dict[str, list[dict[str, object]]] = {}
+def _clean_raw_content(text: str) -> str:
+    """Strip HTML noise from raw page content, preserving informational text."""
+    if not text:
+        return text
 
-    for task_name, entries in task_results.items():
-        if task_name.strip().lower() not in VENUE_TASK_NAMES:
+    # Remove entire block-level noise elements
+    cleaned = _STRIP_BLOCK_TAGS_RE.sub("", text)
+    # Strip remaining HTML tags but keep their text content
+    cleaned = _STRIP_ALL_TAGS_RE.sub(" ", cleaned)
+    # Remove inline URLs (image links, hrefs that leaked through)
+    cleaned = _STRIP_URLS_RE.sub("", cleaned)
+
+    # Remove lines that are mostly boilerplate
+    lines = cleaned.split("\n")
+    filtered: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
             continue
-        if not isinstance(entries, list):
+        # Drop short boilerplate lines
+        if len(stripped) < 80 and _BOILERPLATE_RE.search(stripped):
+            continue
+        filtered.append(stripped)
+
+    cleaned = "\n".join(filtered)
+    # Collapse whitespace
+    cleaned = _COLLAPSE_WHITESPACE_RE.sub(" ", cleaned)
+    cleaned = _COLLAPSE_NEWLINES_RE.sub("\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _minify_prompt(prompt: str) -> str:
+    """Compress whitespace in the prompt to reduce token count."""
+    # Collapse runs of spaces/tabs (but preserve single newlines for structure)
+    minified = re.sub(r"[ \t]+", " ", prompt)
+    # Collapse 3+ newlines to 2
+    minified = re.sub(r"\n{3,}", "\n\n", minified)
+    # Strip trailing spaces on each line
+    minified = re.sub(r" +\n", "\n", minified)
+    return minified.strip()
+
+
+def _format_results_block_for_task(
+    task_name: str,
+    entries: list[dict[str, object]],
+) -> tuple[str, list[dict[str, object]]]:
+    """Build formatted results text for a single task."""
+    if not isinstance(entries, list):
+        return "", []
+
+    task_lines: list[str] = [f"--- Task: {task_name} ---"]
+    valid_entries: list[dict[str, object]] = []
+
+    for entry in entries:
+        if not isinstance(entry, dict):
             continue
 
-        task_lines: list[str] = [f"--- Task: {task_name} ---"]
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
+        title = str(entry.get("title") or "").strip()
+        url = str(entry.get("url") or "").strip()
+        content = str(entry.get("content") or "").strip()[:MAX_CONTENT_CHARS]
+        raw_content = _clean_raw_content(
+            str(entry.get("raw_content") or "").strip()
+        )[:MAX_RAW_CONTENT_CHARS]
 
-            title = str(entry.get("title") or "").strip()
-            url = str(entry.get("url") or "").strip()
-            content = str(entry.get("content") or "").strip()[:MAX_CONTENT_CHARS]
-            raw_content = str(entry.get("raw_content") or "").strip()[:MAX_RAW_CONTENT_CHARS]
+        if not title and not content and not raw_content:
+            continue
 
-            if not title and not content and not raw_content:
-                continue
+        lines = [f"Title: {title}"]
+        if url:
+            lines.append(f"URL: {url}")
+        if content:
+            lines.append(f"Content: {content}")
+        if raw_content:
+            lines.append(f"Raw Content: {raw_content}")
+        task_lines.append("\n".join(lines))
+        valid_entries.append(entry)
 
-            lines = [f"Title: {title}"]
-            if url:
-                lines.append(f"URL: {url}")
-            if content:
-                lines.append(f"Content: {content}")
-            if raw_content:
-                lines.append(f"Raw Content: {raw_content}")
-            task_lines.append("\n".join(lines))
+    if len(task_lines) <= 1:
+        return "", valid_entries
 
-        if len(task_lines) > 1:
-            sections.append("\n\n".join(task_lines))
-
-        source_map[task_name] = entries
-
-    return "\n\n".join(sections), source_map
+    return "\n\n".join(task_lines), valid_entries
 
 
-def _build_extraction_prompt(destination: str, results_block: str) -> str:
-    return EXTRACTION_PROMPT.format(
+def _build_extraction_prompt(
+    destination: str, results_block: str, max_venues: int = MAX_VENUES_PER_TASK,
+) -> str:
+    prompt = EXTRACTION_PROMPT.format(
         destination=destination,
-        max_venues=MAX_VENUES_PER_GENERATION,
+        max_venues=max_venues,
         results_block=results_block,
     )
+    return _minify_prompt(prompt)
 
 
 def _parse_extraction_response(response_text: str) -> list[dict[str, Any]]:
-    """Parse LLM response into a list of venue dicts."""
+    """Parse LLM response into a list of venue dicts.
+
+    Includes a fallback for truncated JSON: if the response starts with
+    a valid array but is cut off mid-stream (e.g. due to max_output_tokens),
+    we attempt to close the array at the last complete object.
+    """
     cleaned = response_text.strip()
 
     # Strip markdown code fences if present
@@ -130,8 +181,8 @@ def _parse_extraction_response(response_text: str) -> list[dict[str, Any]]:
             cleaned = cleaned[:-3]
         cleaned = cleaned.strip()
 
-    parsed = json.loads(cleaned)
-    if not isinstance(parsed, list):
+    parsed = _try_parse_json_array(cleaned)
+    if parsed is None:
         return []
 
     venues: list[dict[str, Any]] = []
@@ -139,7 +190,40 @@ def _parse_extraction_response(response_text: str) -> list[dict[str, Any]]:
         if isinstance(item, dict) and item.get("name"):
             venues.append(item)
 
-    return venues[:MAX_VENUES_PER_GENERATION]
+    return venues[:MAX_VENUES_PER_TASK]
+
+
+def _try_parse_json_array(text: str) -> list[Any] | None:
+    """Try to parse a JSON array, with fallback for truncated responses."""
+    # Happy path — full, valid JSON
+    try:
+        result = json.loads(text)
+        return result if isinstance(result, list) else None
+    except json.JSONDecodeError:
+        pass
+
+    # Truncation recovery: find the last complete object (ends with "}")
+    # and close the array.
+    if not text.startswith("["):
+        return None
+
+    last_brace = text.rfind("}")
+    if last_brace == -1:
+        return None
+
+    candidate = text[: last_brace + 1].rstrip().rstrip(",") + "]"
+    try:
+        result = json.loads(candidate)
+        if isinstance(result, list):
+            logger.info(
+                "Recovered %d venue(s) from truncated extraction response",
+                len(result),
+            )
+            return result
+    except json.JSONDecodeError:
+        pass
+
+    return None
 
 
 def _enrich_venues_with_source(
@@ -226,6 +310,22 @@ def _dump_to_markdown(data: dict[str, Any], filename_prefix: str) -> None:
         logger.exception(f"Failed to dump debug data for {filename_prefix}")
 
 
+def _dump_raw_response(response_text: str, filename_prefix: str) -> None:
+    """Dump raw LLM response string to a file for debugging."""
+    try:
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        dump_dir = project_root / "debug_dumps"
+        dump_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = dump_dir / f"{filename_prefix}_{timestamp}.json"
+
+        filepath.write_text(response_text)
+        logger.info(f"Dumped raw response to {filepath}")
+    except Exception:
+        logger.exception(f"Failed to dump raw response for {filename_prefix}")
+
+
 async def _call_gemini(prompt: str) -> str | None:
     """Call LLM for venue extraction. Returns response text or None on failure."""
     settings = get_settings()
@@ -242,7 +342,7 @@ async def _call_gemini(prompt: str) -> str | None:
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 response_mime_type="application/json",
             ),
         )
@@ -257,7 +357,12 @@ async def extractor_node(
     *,
     llm_caller: Any | None = None,
 ) -> AgentState:
-    """Extract structured venue data from raw Tavily results using Gemini."""
+    """Extract structured venue data from raw Tavily results using Gemini.
+
+    Processes each venue task independently to avoid output truncation
+    from overly large prompts. Results are aggregated and enriched
+    with source URL metadata before being merged back into state.
+    """
     if state.get("error_event") is not None:
         return state
 
@@ -267,14 +372,16 @@ async def extractor_node(
     task_results = dict(raw_task_results) if isinstance(raw_task_results, dict) else {}
     destination = str(state.get("destination", "")).strip() or "Unknown Destination"
 
-    # Check if there are any venue tasks to process
-    has_venue_tasks = any(
-        name.strip().lower() in VENUE_TASK_NAMES
-        for name in task_results
+    # Identify venue tasks to process
+    venue_tasks = [
+        (name, entries)
+        for name, entries in task_results.items()
         if isinstance(name, str)
-    )
+        and name.strip().lower() in VENUE_TASK_NAMES
+        and isinstance(entries, list)
+    ]
 
-    if not has_venue_tasks:
+    if not venue_tasks:
         return {
             **state,
             "events": events,
@@ -296,28 +403,81 @@ async def extractor_node(
         ).to_payload(),
     )
 
-    results_block, source_map = _format_results_block(task_results)
-    if not results_block.strip():
-        return {
-            **state,
-            "events": events,
-            "event_cursor": event_cursor,
-            "event_base_cursor": event_base_cursor,
-        }
-
-    prompt = _build_extraction_prompt(destination, results_block)
-
     # Log before extraction
     _dump_to_markdown(task_results, "before_extraction")
 
-    # Use injected caller for testing, or real Gemini
-    if llm_caller is not None:
-        response_text = await llm_caller(prompt)
-    else:
-        response_text = await _call_gemini(prompt)
+    # Process each venue task independently to avoid output truncation
+    all_extracted: list[dict[str, Any]] = []
+    combined_source_map: dict[str, list[dict[str, object]]] = {}
 
-    if response_text is None:
-        # Graceful fallback — keep original Tavily results
+    for task_name, entries in venue_tasks:
+        results_block, valid_entries = _format_results_block_for_task(
+            task_name, entries,
+        )
+        if not results_block.strip():
+            combined_source_map[task_name] = valid_entries
+            continue
+
+        # Emit per-task progress event so the UI shows activity
+        events, event_cursor, event_base_cursor = append_event_to_buffer(
+            events=events,
+            event_cursor=event_cursor,
+            event_base_cursor=event_base_cursor,
+            payload=ThoughtLogEvent(
+                timestamp=datetime.now(UTC).isoformat(),
+                data=ThoughtLogData(
+                    message=f"Analyzing {task_name} results",
+                    icon="🧠",
+                    step="extractor",
+                ),
+            ).to_payload(),
+        )
+
+        combined_source_map[task_name] = valid_entries
+        prompt = _build_extraction_prompt(destination, results_block)
+
+        t0 = time.monotonic()
+
+        if llm_caller is not None:
+            response_text = await llm_caller(prompt)
+        else:
+            response_text = await _call_gemini(prompt)
+
+        elapsed = time.monotonic() - t0
+
+        if response_text:
+            _dump_raw_response(
+                response_text,
+                f"raw_extraction_{task_name.lower().replace(' ', '_')}",
+            )
+
+        if response_text is None:
+            logger.warning(
+                "Extraction call failed for task '%s' after %.1fs — skipping",
+                task_name, elapsed,
+            )
+            continue
+
+        try:
+            task_venues = _parse_extraction_response(response_text)
+        except (json.JSONDecodeError, ValueError):
+            logger.warning(
+                "Failed to parse extraction response for task '%s' "
+                "(%.1fs). Raw text (first 2000 chars): %s",
+                task_name, elapsed,
+                response_text[:2000] if response_text else "<empty>",
+            )
+            continue
+
+        all_extracted.extend(task_venues)
+        logger.info(
+            "Extracted %d venues from task '%s' in %.1fs "
+            "(prompt: %d chars, response: %d chars)",
+            len(task_venues), task_name, elapsed,
+            len(prompt), len(response_text),
+        )
+
+    if not all_extracted:
         events, event_cursor, event_base_cursor = append_event_to_buffer(
             events=events,
             event_cursor=event_cursor,
@@ -338,26 +498,7 @@ async def extractor_node(
             "event_base_cursor": event_base_cursor,
         }
 
-    try:
-        extracted_venues = _parse_extraction_response(response_text)
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("Failed to parse Gemini extraction response")
-        return {
-            **state,
-            "events": events,
-            "event_cursor": event_cursor,
-            "event_base_cursor": event_base_cursor,
-        }
-
-    if not extracted_venues:
-        return {
-            **state,
-            "events": events,
-            "event_cursor": event_cursor,
-            "event_base_cursor": event_base_cursor,
-        }
-
-    enriched_results = _enrich_venues_with_source(extracted_venues, source_map)
+    enriched_results = _enrich_venues_with_source(all_extracted, combined_source_map)
 
     # Log after extraction
     _dump_to_markdown(enriched_results, "after_extraction")
@@ -367,6 +508,7 @@ async def extractor_node(
     for task_name, venues in enriched_results.items():
         merged_results[task_name] = venues
 
+    total_venues = sum(len(v) for v in enriched_results.values())
     events, event_cursor, event_base_cursor = append_event_to_buffer(
         events=events,
         event_cursor=event_cursor,
@@ -374,7 +516,7 @@ async def extractor_node(
         payload=ThoughtLogEvent(
             timestamp=datetime.now(UTC).isoformat(),
             data=ThoughtLogData(
-                message=f"Extracted {sum(len(v) for v in enriched_results.values())} venues",
+                message=f"Extracted {total_venues} venues",
                 icon="✅",
                 step="extractor",
             ),

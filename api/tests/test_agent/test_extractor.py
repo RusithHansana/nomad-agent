@@ -4,9 +4,11 @@ from typing import Any
 import pytest
 
 from src.agent.nodes.extractor import (
-    MAX_VENUES_PER_GENERATION,
+    MAX_VENUES_PER_TASK,
     VENUE_TASK_NAMES,
-    _format_results_block,
+    _clean_raw_content,
+    _format_results_block_for_task,
+    _minify_prompt,
     _parse_extraction_response,
     extractor_node,
 )
@@ -110,9 +112,9 @@ class TestParseExtractionResponse:
         result = _parse_extraction_response('{"key": "value"}')
         assert result == []
 
-    def test_raises_on_invalid_json(self) -> None:
-        with pytest.raises(json.JSONDecodeError):
-            _parse_extraction_response("not json")
+    def test_returns_empty_for_invalid_json(self) -> None:
+        result = _parse_extraction_response("not json")
+        assert result == []
 
     def test_filters_items_without_name(self) -> None:
         response = json.dumps([
@@ -128,40 +130,70 @@ class TestParseExtractionResponse:
         many_venues = [{"name": f"Venue {i}", "address": f"Addr {i}"} for i in range(30)]
         response = json.dumps(many_venues)
         result = _parse_extraction_response(response)
-        assert len(result) == MAX_VENUES_PER_GENERATION
+        assert len(result) == MAX_VENUES_PER_TASK
 
 
-class TestFormatResultsBlock:
-    def test_formats_venue_tasks_only(self) -> None:
-        task_results = {
-            "Local Research": [_tavily_result("Page Title 1")],
-            "Route Optimization": [_tavily_result("Route Info")],
-        }
-        block, source_map = _format_results_block(task_results)
+class TestFormatResultsBlockForTask:
+    def test_formats_entries(self) -> None:
+        entries = [_tavily_result("Page Title 1")]
+        block, valid = _format_results_block_for_task("Local Research", entries)
         assert "Page Title 1" in block
-        assert "Route Info" not in block
-        assert "Local Research" in source_map
-        assert "Route Optimization" not in source_map
+        assert len(valid) == 1
 
-    def test_handles_empty_task_results(self) -> None:
-        block, source_map = _format_results_block({})
+    def test_handles_empty_entries(self) -> None:
+        block, valid = _format_results_block_for_task("Local Research", [])
         assert block == ""
-        assert source_map == {}
+        assert valid == []
 
     def test_skips_non_dict_entries(self) -> None:
-        task_results = {
-            "Local Research": [_tavily_result("Valid"), "invalid", None],
-        }
-        block, _ = _format_results_block(task_results)
+        entries = [_tavily_result("Valid"), "invalid", None]
+        block, _ = _format_results_block_for_task("Local Research", entries)
         assert "Valid" in block
 
     def test_skips_entries_with_no_content(self) -> None:
-        task_results = {
-            "Local Research": [{"title": "", "url": "", "content": "", "raw_content": ""}],
-        }
-        block, _ = _format_results_block(task_results)
+        entries = [{"title": "", "url": "", "content": "", "raw_content": ""}]
+        block, _ = _format_results_block_for_task("Local Research", entries)
         # Only the task header, no actual entries
         assert "Title:" not in block
+
+
+class TestCleanRawContent:
+    def test_strips_html_tags(self) -> None:
+        html = "<p>Great <b>restaurant</b> in <a href='http://x.com'>Tokyo</a></p>"
+        cleaned = _clean_raw_content(html)
+        assert "<p>" not in cleaned
+        assert "<b>" not in cleaned
+        assert "restaurant" in cleaned
+        assert "Tokyo" in cleaned
+
+    def test_removes_script_and_style_blocks(self) -> None:
+        html = "<script>var x=1;</script>Useful text<style>.a{color:red}</style>"
+        cleaned = _clean_raw_content(html)
+        assert "var x" not in cleaned
+        assert "color:red" not in cleaned
+        assert "Useful text" in cleaned
+
+    def test_removes_urls(self) -> None:
+        text = "Visit https://example.com/image.jpg for details about Tsukiji Market"
+        cleaned = _clean_raw_content(text)
+        assert "https://" not in cleaned
+        assert "Tsukiji Market" in cleaned
+
+    def test_returns_empty_for_empty_input(self) -> None:
+        assert _clean_raw_content("") == ""
+
+
+class TestMinifyPrompt:
+    def test_collapses_whitespace(self) -> None:
+        prompt = "Extract   venues    from    results"
+        result = _minify_prompt(prompt)
+        assert "   " not in result
+        assert "Extract venues from results" == result
+
+    def test_collapses_excessive_newlines(self) -> None:
+        prompt = "Line 1\n\n\n\n\nLine 2"
+        result = _minify_prompt(prompt)
+        assert result == "Line 1\n\nLine 2"
 
 
 # --- Integration tests for extractor_node ---
@@ -187,7 +219,9 @@ async def test_extractor_extracts_structured_venues_from_tavily_results() -> Non
         if task_name.strip().lower() in VENUE_TASK_NAMES:
             all_venues.extend(entries)
 
-    assert len(all_venues) == 2
+    # Per-task extraction: success_caller returns 2 venues per call,
+    # called once for Local Research and once for Event Checking = 4 total
+    assert len(all_venues) == 4
     assert all_venues[0]["name"] == "Tsukiji Outer Market"
     assert all_venues[0]["latitude"] == 35.6654
     assert all_venues[0]["opening_hours"] == ["Mon-Sun 5:00-14:00"]
@@ -203,6 +237,8 @@ async def test_extractor_preserves_source_url_from_original_results() -> None:
 
     result = await extractor_node(state, llm_caller=_success_caller)
 
+    # LLM-extracted venues don't have source_url matching original results;
+    # the enrichment maps them via fallback URL from the source_map
     venues = result["task_results"]["Local Research"]
     assert venues[0]["source_url"] == "https://tripadvisor.com/tokyo"
 
@@ -235,9 +271,8 @@ async def test_extractor_falls_back_on_llm_failure() -> None:
 
     result = await extractor_node(state, llm_caller=_failure_caller)
 
-    # Original results preserved
-    assert result["task_results"]["Local Research"][0]["title"] == "Original Title"
-    # Fallback event emitted
+    # When all LLM calls fail, no extraction happens and
+    # the fallback "extraction unavailable" event is emitted
     fallback_events = [
         e for e in result["events"]
         if isinstance(e, dict) and e.get("event_type") == "thought_log"
@@ -257,8 +292,13 @@ async def test_extractor_falls_back_on_invalid_json_response() -> None:
 
     result = await extractor_node(state, llm_caller=_invalid_json_caller)
 
-    # Original results preserved on parse failure
-    assert result["task_results"]["Local Research"][0]["title"] == "Original Title"
+    # When parse fails for all tasks, fallback event is emitted
+    fallback_events = [
+        e for e in result["events"]
+        if isinstance(e, dict) and e.get("event_type") == "thought_log"
+        and "unavailable" in str(e.get("data", {}).get("message", "")).lower()
+    ]
+    assert len(fallback_events) == 1
 
 
 @pytest.mark.asyncio
@@ -272,7 +312,13 @@ async def test_extractor_falls_back_on_empty_extraction() -> None:
 
     result = await extractor_node(state, llm_caller=_empty_array_caller)
 
-    assert result["task_results"]["Local Research"][0]["title"] == "Original Title"
+    # Empty extraction from all tasks triggers fallback event
+    fallback_events = [
+        e for e in result["events"]
+        if isinstance(e, dict) and e.get("event_type") == "thought_log"
+        and "unavailable" in str(e.get("data", {}).get("message", "")).lower()
+    ]
+    assert len(fallback_events) == 1
 
 
 @pytest.mark.asyncio

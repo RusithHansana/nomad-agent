@@ -300,13 +300,31 @@ async def researcher_node(
                     scored_results.append(item)
 
             if not scored_results and results_for_task:
-                # All results below threshold — flag entire batch as degraded
-                scored_results = _mark_results_unverified(results_for_task)
+                # All results below threshold — discard entirely rather than
+                # passing wrong-destination data downstream.
                 logger.warning(
-                    "All results for task '%s' scored below relevance threshold "
-                    "(%.2f). Marking as degraded.",
+                    "All %d results for task '%s' scored below relevance "
+                    "threshold (%.2f). Discarding — likely wrong destination.",
+                    len(results_for_task),
                     task_name,
                     RELEVANCE_THRESHOLD,
+                )
+                scored_results = []
+                events, event_cursor, event_base_cursor = append_event_to_buffer(
+                    events=events,
+                    event_cursor=event_cursor,
+                    event_base_cursor=event_base_cursor,
+                    payload=ThoughtLogEvent(
+                        timestamp=datetime.now(UTC).isoformat(),
+                        data=ThoughtLogData(
+                            message=(
+                                f"Search results for {task_name} didn't match "
+                                f"{destination} — skipping"
+                            ),
+                            icon="⚠️",
+                            step="researcher",
+                        ),
+                    ).to_payload(),
                 )
 
             results_for_task = scored_results
