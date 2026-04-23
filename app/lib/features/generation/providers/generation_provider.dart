@@ -28,6 +28,13 @@ class ThoughtLogEntry {
   final String timestamp;
 }
 
+class GenerationViewState {
+  const GenerationViewState({
+    required this.destinationDisplay,
+    required this.entries,
+    required this.phase,
+    required this.firstEventReceived,
+    required this.showColdStartOverlay,
     required this.elapsedSeconds,
     required this.errorMessage,
     required this.itineraryId,
@@ -65,6 +72,13 @@ class ThoughtLogEntry {
 
   static const Object _noChange = Object();
 
+  GenerationViewState copyWith({
+    String? destinationDisplay,
+    List<ThoughtLogEntry>? entries,
+    GenerationPhase? phase,
+    bool? firstEventReceived,
+    bool? showColdStartOverlay,
+    int? elapsedSeconds,
     Object? errorMessage = _noChange,
     String? itineraryId,
     bool? hasAttemptedReconnect,

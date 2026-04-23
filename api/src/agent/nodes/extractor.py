@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,13 @@ _STRIP_BLOCK_TAGS_RE = re.compile(
 )
 _STRIP_ALL_TAGS_RE = re.compile(r"<[^>]+>")
 _STRIP_URLS_RE = re.compile(r"https?://\S+")
+_STRIP_MD_IMAGES_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_STRIP_MD_LINKS_RE = re.compile(r"\[([^\]]*?)\]\([^)]*\)")
+_STRIP_EMOJI_RE = re.compile(
+    r"[\U0001F300-\U0001F9FF\U00002600-\U000027BF\U0000FE00-\U0000FE0F"
+    r"\U0000200D\U00002702-\U000027B0]+",
+)
+_STRIP_MD_NAV_RE = re.compile(r"^\s*\*\s*\[.*?\]\(.*?\)\s*$", re.MULTILINE)
 _COLLAPSE_WHITESPACE_RE = re.compile(r"[ \t]+")
 _COLLAPSE_NEWLINES_RE = re.compile(r"\n{3,}")
 _BOILERPLATE_RE = re.compile(
@@ -70,7 +79,7 @@ EXTRACTION_PROMPT = (
 
 
 def _clean_raw_content(text: str) -> str:
-    """Strip HTML noise from raw page content, preserving informational text."""
+    """Strip HTML and markdown noise from raw page content, preserving informational text."""
     if not text:
         return text
 
@@ -78,6 +87,15 @@ def _clean_raw_content(text: str) -> str:
     cleaned = _STRIP_BLOCK_TAGS_RE.sub("", text)
     # Strip remaining HTML tags but keep their text content
     cleaned = _STRIP_ALL_TAGS_RE.sub(" ", cleaned)
+
+    # Remove markdown image references (carry zero venue info)
+    cleaned = _STRIP_MD_IMAGES_RE.sub("", cleaned)
+    # Convert markdown links to just their text (drop the URL target)
+    cleaned = _STRIP_MD_LINKS_RE.sub(r"\1", cleaned)
+    # Remove markdown navigation lists (e.g. breadcrumb patterns)
+    cleaned = _STRIP_MD_NAV_RE.sub("", cleaned)
+    # Remove decorative emoji
+    cleaned = _STRIP_EMOJI_RE.sub("", cleaned)
     # Remove inline URLs (image links, hrefs that leaked through)
     cleaned = _STRIP_URLS_RE.sub("", cleaned)
 
@@ -384,6 +402,63 @@ async def pre_extractor_node(state: AgentState) -> dict[str, Any]:
     }
 
 
+async def _extract_single_task(
+    task_name: str,
+    entries: list[dict[str, object]],
+    destination: str,
+    llm_caller: Callable[[str], Awaitable[str | None]] | None,
+) -> tuple[str, list[dict[str, object]], list[dict[str, Any]]]:
+    """Run extraction for a single task. Returns (task_name, valid_entries, venues)."""
+    results_block, valid_entries = _format_results_block_for_task(
+        task_name, entries,
+    )
+    if not results_block.strip():
+        return task_name, valid_entries, []
+
+    prompt = _build_extraction_prompt(destination, results_block)
+
+    t0 = time.monotonic()
+
+    if llm_caller is not None:
+        response_text = await llm_caller(prompt)
+    else:
+        response_text = await _call_gemini(prompt)
+
+    elapsed = time.monotonic() - t0
+
+    if response_text:
+        _dump_raw_response(
+            response_text,
+            f"raw_extraction_{task_name.lower().replace(' ', '_')}",
+        )
+
+    if response_text is None:
+        logger.warning(
+            "Extraction call failed for task '%s' after %.1fs — skipping",
+            task_name, elapsed,
+        )
+        return task_name, valid_entries, []
+
+    try:
+        task_venues = _parse_extraction_response(response_text)
+    except (json.JSONDecodeError, ValueError):
+        logger.warning(
+            "Failed to parse extraction response for task '%s' "
+            "(%.1fs). Raw text (first 2000 chars): %s",
+            task_name, elapsed,
+            response_text[:2000] if response_text else "<empty>",
+        )
+        return task_name, valid_entries, []
+
+    logger.info(
+        "Extracted %d venues from task '%s' in %.1fs "
+        "(prompt: %d chars, response: %d chars)",
+        len(task_venues), task_name, elapsed,
+        len(prompt), len(response_text),
+    )
+    return task_name, valid_entries, task_venues
+
+
 async def extractor_node(
     state: AgentState,
     *,
@@ -391,9 +466,10 @@ async def extractor_node(
 ) -> dict[str, Any]:
     """Extract structured venue data from raw Tavily results using Gemini.
 
-    Processes each venue task independently to avoid output truncation
-    from overly large prompts. Results are aggregated and enriched
-    with source URL metadata before being merged back into state.
+    Processes each venue task independently and in parallel using
+    asyncio.gather to minimize wall-clock time. Results are aggregated
+    and enriched with source URL metadata before being merged back
+    into state.
     """
     if state.get("error_event") is not None:
         return state
@@ -424,76 +500,46 @@ async def extractor_node(
     # Log before extraction
     _dump_to_markdown(task_results, "before_extraction")
 
-    # Process each venue task independently to avoid output truncation
+    # Emit a single progress event before the parallel batch
+    task_names_str = ", ".join(name for name, _ in venue_tasks)
+    events, event_cursor, event_base_cursor = append_event_to_buffer(
+        events=events,
+        event_cursor=event_cursor,
+        event_base_cursor=event_base_cursor,
+        payload=ThoughtLogEvent(
+            timestamp=datetime.now(UTC).isoformat(),
+            data=ThoughtLogData(
+                message=f"Analyzing {task_names_str}",
+                icon="🧠",
+                step="extractor",
+            ),
+        ).to_payload(),
+    )
+
+    # Fire all LLM extraction calls in parallel
+    t0_all = time.monotonic()
+    extraction_coros = [
+        _extract_single_task(task_name, entries, destination, llm_caller)
+        for task_name, entries in venue_tasks
+    ]
+    extraction_results = await asyncio.gather(*extraction_coros, return_exceptions=True)
+    elapsed_all = time.monotonic() - t0_all
+    logger.info(
+        "All %d extraction tasks completed in %.1fs (parallel)",
+        len(extraction_coros), elapsed_all,
+    )
+
+    # Aggregate results from all parallel tasks
     all_extracted: list[dict[str, Any]] = []
     combined_source_map: dict[str, list[dict[str, object]]] = {}
 
-    for task_name, entries in venue_tasks:
-        results_block, valid_entries = _format_results_block_for_task(
-            task_name, entries,
-        )
-        if not results_block.strip():
-            combined_source_map[task_name] = valid_entries
+    for result in extraction_results:
+        if isinstance(result, BaseException):
+            logger.error("Extraction task raised an exception: %s", result)
             continue
-
-        # Emit per-task progress event so the UI shows activity
-        events, event_cursor, event_base_cursor = append_event_to_buffer(
-            events=events,
-            event_cursor=event_cursor,
-            event_base_cursor=event_base_cursor,
-            payload=ThoughtLogEvent(
-                timestamp=datetime.now(UTC).isoformat(),
-                data=ThoughtLogData(
-                    message=f"Analyzing {task_name} results",
-                    icon="🧠",
-                    step="extractor",
-                ),
-            ).to_payload(),
-        )
-
+        task_name, valid_entries, task_venues = result
         combined_source_map[task_name] = valid_entries
-        prompt = _build_extraction_prompt(destination, results_block)
-
-        t0 = time.monotonic()
-
-        if llm_caller is not None:
-            response_text = await llm_caller(prompt)
-        else:
-            response_text = await _call_gemini(prompt)
-
-        elapsed = time.monotonic() - t0
-
-        if response_text:
-            _dump_raw_response(
-                response_text,
-                f"raw_extraction_{task_name.lower().replace(' ', '_')}",
-            )
-
-        if response_text is None:
-            logger.warning(
-                "Extraction call failed for task '%s' after %.1fs — skipping",
-                task_name, elapsed,
-            )
-            continue
-
-        try:
-            task_venues = _parse_extraction_response(response_text)
-        except (json.JSONDecodeError, ValueError):
-            logger.warning(
-                "Failed to parse extraction response for task '%s' "
-                "(%.1fs). Raw text (first 2000 chars): %s",
-                task_name, elapsed,
-                response_text[:2000] if response_text else "<empty>",
-            )
-            continue
-
         all_extracted.extend(task_venues)
-        logger.info(
-            "Extracted %d venues from task '%s' in %.1fs "
-            "(prompt: %d chars, response: %d chars)",
-            len(task_venues), task_name, elapsed,
-            len(prompt), len(response_text),
-        )
 
     if not all_extracted:
         events, event_cursor, event_base_cursor = append_event_to_buffer(
