@@ -10,29 +10,40 @@ from src.agent.tools.tavily_search import TavilySearchTool, TavilyUnavailableErr
 
 
 class FakeSearchTool:
-    def __init__(self) -> None:
+    def __init__(self, destination: str = "") -> None:
         self.calls: list[tuple[str, int]] = []
+        self._destination = destination
 
     async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
         self.calls.append((query, max_results))
+        dest = self._destination or "Lisbon"
         return [
-            {"title": f"result-{index} for {query}", "url": f"https://example.com/{index}"}
+            {
+                "title": f"result-{index} for {query}",
+                "url": f"https://example.com/{index}",
+                "content": f"Great places in {dest}",
+                "score": 0.9,
+            }
             for index in range(MAX_RESULTS_PER_TASK)
         ]
 
 
 class EmptyThenPopulatedSearchTool:
-    def __init__(self) -> None:
+    def __init__(self, destination: str = "") -> None:
         self.calls: list[tuple[str, int]] = []
+        self._destination = destination
 
     async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
         self.calls.append((query, max_results))
         if len(self.calls) == 1:
             return []
+        dest = self._destination or "Ella"
         return [
             {
                 "title": f"Found result {index}",
                 "url": f"https://example.com/found-{index}",
+                "content": f"Attractions near {dest}",
+                "score": 0.9,
             }
             for index in range(MAX_RESULTS_PER_TASK)
         ]
@@ -54,7 +65,14 @@ class SuccessThenUnavailableSearchTool:
     async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
         self.calls_made += 1
         if self.calls_made == 1:
-            return [{"title": "Found", "url": "https://example.com/found"}]
+            return [
+                {
+                    "title": "Found",
+                    "url": "https://example.com/found",
+                    "content": "Things to do in Kandy",
+                    "score": 0.9,
+                }
+            ]
         raise TavilyUnavailableError("down")
 
 
@@ -63,7 +81,12 @@ class NonIntCallsMadeSearchTool:
 
     async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
         return [
-            {"title": f"result-{index} for {query}", "url": f"https://example.com/{index}"}
+            {
+                "title": f"result-{index} for {query}",
+                "url": f"https://example.com/{index}",
+                "content": "Visiting Kandy temples",
+                "score": 0.9,
+            }
             for index in range(MAX_RESULTS_PER_TASK)
         ]
 
@@ -78,16 +101,16 @@ class FlakyTavilyClient:
             raise RuntimeError("temporary network issue")
         return {
             "results": [
-                {"title": "Stable Result", "url": "https://example.com/stable"},
-                {"title": "Stable Result 2", "url": "https://example.com/stable-2"},
-                {"title": "Stable Result 3", "url": "https://example.com/stable-3"},
+                {"title": "Kandy Temple of Tooth", "url": "https://example.com/stable", "content": "Historic Kandy", "score": 0.9},
+                {"title": "Kandy Lake", "url": "https://example.com/stable-2", "content": "Beautiful Kandy", "score": 0.85},
+                {"title": "Kandy Market", "url": "https://example.com/stable-3", "content": "Shopping in Kandy", "score": 0.8},
             ]
         }
 
 
 @pytest.mark.asyncio
 async def test_researcher_executes_one_search_per_task_and_stores_results() -> None:
-    search_tool = FakeSearchTool()
+    search_tool = FakeSearchTool(destination="Lisbon")
     state = {
         "prompt": "3 days in lisbon",
         "destination": "Lisbon",
@@ -144,7 +167,7 @@ async def test_researcher_self_corrects_and_emits_event_on_empty_results() -> No
 
 @pytest.mark.asyncio
 async def test_researcher_respects_call_budget() -> None:
-    search_tool = FakeSearchTool()
+    search_tool = FakeSearchTool(destination="Lisbon")
     state = {
         "prompt": "trip",
         "destination": "Lisbon",
@@ -255,7 +278,7 @@ async def test_researcher_handles_non_int_calls_made_counter() -> None:
 
 @pytest.mark.asyncio
 async def test_researcher_handles_malformed_tasks_without_crashing() -> None:
-    search_tool = FakeSearchTool()
+    search_tool = FakeSearchTool(destination="Kandy")
     state = {
         "prompt": "trip",
         "destination": "Kandy",
@@ -308,7 +331,7 @@ async def test_researcher_caps_destination_length_when_broadening_queries() -> N
 
 @pytest.mark.asyncio
 async def test_researcher_caps_query_length_before_search() -> None:
-    search_tool = FakeSearchTool()
+    search_tool = FakeSearchTool(destination="Kandy")
     state = {
         "prompt": "trip",
         "destination": "Kandy",

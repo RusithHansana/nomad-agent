@@ -94,6 +94,7 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
                     scrollController: _scrollController,
                     isError: generationState.phase == GenerationPhase.error,
                     errorMessage: generationState.errorMessage,
+                    currentStep: generationState.currentStep,
                     onRetry: () {
                       ref
                           .read(

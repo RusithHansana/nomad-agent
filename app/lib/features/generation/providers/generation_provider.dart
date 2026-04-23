@@ -39,6 +39,7 @@ class GenerationViewState {
     required this.errorMessage,
     required this.itineraryId,
     required this.hasAttemptedReconnect,
+    this.currentStep,
   });
 
   factory GenerationViewState.initial({required String destinationDisplay}) {
@@ -52,6 +53,7 @@ class GenerationViewState {
       errorMessage: null,
       itineraryId: null,
       hasAttemptedReconnect: false,
+      currentStep: null,
     );
   }
 
@@ -64,6 +66,7 @@ class GenerationViewState {
   final String? errorMessage;
   final String? itineraryId;
   final bool hasAttemptedReconnect;
+  final String? currentStep;
 
   bool get isStreaming => phase == GenerationPhase.streaming;
 
@@ -79,6 +82,7 @@ class GenerationViewState {
     Object? errorMessage = _noChange,
     String? itineraryId,
     bool? hasAttemptedReconnect,
+    String? currentStep,
   }) {
     return GenerationViewState(
       destinationDisplay: destinationDisplay ?? this.destinationDisplay,
@@ -93,6 +97,7 @@ class GenerationViewState {
       itineraryId: itineraryId ?? this.itineraryId,
       hasAttemptedReconnect:
           hasAttemptedReconnect ?? this.hasAttemptedReconnect,
+      currentStep: currentStep ?? this.currentStep,
     );
   }
 }
@@ -274,6 +279,9 @@ class GenerationController
         message: event.message,
         timestamp: event.timestamp,
       );
+      if (event.step != null) {
+        state = state.copyWith(currentStep: event.step);
+      }
       return;
     }
 

@@ -32,36 +32,56 @@ class ItineraryScreen extends ConsumerWidget {
 
     if (itinerary == null) {
       final colorScheme = Theme.of(context).colorScheme;
-      return Scaffold(
-        appBar: AppBar(title: const Text('Itinerary')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Itinerary not found.',
-                  style: AppTypography.h3(color: colorScheme.onSurface),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Please return and generate a new trip.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body(color: colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton(
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                      return;
-                    }
-                    context.go('/');
-                  },
-                  child: const Text('Back'),
-                ),
-              ],
+      return PopScope(
+        canPop: context.canPop(),
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            context.go('/');
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Itinerary'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/');
+                }
+              },
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Itinerary not found.',
+                    style: AppTypography.h3(color: colorScheme.onSurface),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Please return and generate a new trip.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body(color: colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton(
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                        return;
+                      }
+                      context.go('/');
+                    },
+                    child: const Text('Back'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -70,23 +90,41 @@ class ItineraryScreen extends ConsumerWidget {
 
     final launcher = ref.read(sourceUrlLauncherProvider);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(itinerary.destination),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Timeline'),
-              Tab(text: 'Map'),
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/');
+        }
+      },
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/');
+                }
+              },
+            ),
+            title: Text(itinerary.destination),
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: 'Timeline'),
+                Tab(text: 'Map'),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              _TimelineTab(itinerary: itinerary, launcher: launcher),
+              ItineraryMapTab(itinerary: itinerary, showTiles: showMapTiles),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _TimelineTab(itinerary: itinerary, launcher: launcher),
-            ItineraryMapTab(itinerary: itinerary, showTiles: showMapTiles),
-          ],
         ),
       ),
     );
@@ -101,6 +139,7 @@ class _TimelineTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print(itinerary);
     return ListView.builder(
       key: const ValueKey<String>('itinerary-timeline-list'),
       padding: const EdgeInsets.all(AppSpacing.md),

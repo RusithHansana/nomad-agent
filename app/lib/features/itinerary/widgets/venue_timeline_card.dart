@@ -7,6 +7,7 @@ import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 
 import 'verification_badge.dart';
+import 'venue_type_label.dart';
 
 class VenueTimelineCard extends StatefulWidget {
   const VenueTimelineCard({
@@ -199,6 +200,11 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                                 style: AppTypography.bodySmall(
                                   color: textPrimary,
                                 ),
+                              ),
+                            if (widget.venue.venueType != null)
+                              VenueTypeLabel(
+                                type: widget.venue.venueType!,
+                                color: textPrimary,
                               ),
                             if (_costText(widget.venue) != null)
                               Text(
