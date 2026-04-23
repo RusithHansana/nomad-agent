@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_spacing.dart';
 import '../../core/models/itinerary.dart';
+import '../pdf/providers/pdf_export_provider.dart';
 
 import '../../core/theme/app_typography.dart';
 import 'providers/itinerary_store_provider.dart';
@@ -26,17 +27,42 @@ class ItineraryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<PdfExportState>(pdfExportControllerProvider, (previous, next) {
+      if (previous?.status == next.status) {
+        return;
+      }
+
+      if (next.status == PdfExportStatus.ready && next.filePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF saved to ${next.filePath}')),
+        );
+        ref.read(pdfExportControllerProvider.notifier).reset();
+      }
+
+      if (next.status == PdfExportStatus.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              next.errorMessage ??
+                  'Unable to export PDF right now. Please try again.',
+            ),
+          ),
+        );
+      }
+    });
+
     final itinerary = ref.watch(
       itineraryStoreProvider.select((store) => store[id]),
     );
 
     if (itinerary == null) {
       final colorScheme = Theme.of(context).colorScheme;
+      final canPop = _canPop(context);
       return PopScope(
-        canPop: context.canPop(),
+        canPop: canPop,
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop) {
-            context.go('/');
+            _navigateToHome(context);
           }
         },
         child: Scaffold(
@@ -45,11 +71,7 @@ class ItineraryScreen extends ConsumerWidget {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/');
-                }
+                _popOrGoHome(context);
               },
             ),
           ),
@@ -67,16 +89,14 @@ class ItineraryScreen extends ConsumerWidget {
                   Text(
                     'Please return and generate a new trip.',
                     textAlign: TextAlign.center,
-                    style: AppTypography.body(color: colorScheme.onSurfaceVariant),
+                    style: AppTypography.body(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   OutlinedButton(
                     onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                        return;
-                      }
-                      context.go('/');
+                      _popOrGoHome(context);
                     },
                     child: const Text('Back'),
                   ),
@@ -89,12 +109,15 @@ class ItineraryScreen extends ConsumerWidget {
     }
 
     final launcher = ref.read(sourceUrlLauncherProvider);
+    final exportState = ref.watch(pdfExportControllerProvider);
+    final isGenerating = exportState.status == PdfExportStatus.generating;
+    final canPop = _canPop(context);
 
     return PopScope(
-      canPop: context.canPop(),
+      canPop: canPop,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
-          context.go('/');
+          _navigateToHome(context);
         }
       },
       child: DefaultTabController(
@@ -104,11 +127,7 @@ class ItineraryScreen extends ConsumerWidget {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/');
-                }
+                _popOrGoHome(context);
               },
             ),
             title: Text(itinerary.destination),
@@ -125,6 +144,41 @@ class ItineraryScreen extends ConsumerWidget {
               ItineraryMapTab(itinerary: itinerary, showTiles: showMapTiles),
             ],
           ),
+          bottomNavigationBar: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.md,
+            ),
+            child: Semantics(
+              button: true,
+              label: 'Export itinerary as PDF',
+              child: FilledButton(
+                onPressed: isGenerating
+                    ? null
+                    : () {
+                        ref
+                            .read(pdfExportControllerProvider.notifier)
+                            .export(itinerary);
+                      },
+                child: isGenerating
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: AppSpacing.sm),
+                          Text('Exporting...'),
+                        ],
+                      )
+                    : const Text('Export PDF'),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -139,7 +193,6 @@ class _TimelineTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print(itinerary);
     return ListView.builder(
       key: const ValueKey<String>('itinerary-timeline-list'),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -204,5 +257,37 @@ class _TimelineTab extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+bool _canPop(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null) {
+    return router.canPop();
+  }
+  return Navigator.of(context).canPop();
+}
+
+void _popOrGoHome(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null) {
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      router.go('/');
+    }
+    return;
+  }
+
+  final navigator = Navigator.of(context);
+  if (navigator.canPop()) {
+    navigator.pop();
+  }
+}
+
+void _navigateToHome(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null) {
+    router.go('/');
   }
 }

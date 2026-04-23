@@ -2,6 +2,8 @@ import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
+import 'package:app/features/pdf/pdf_generator.dart';
+import 'package:app/features/pdf/providers/pdf_export_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -269,6 +271,50 @@ void main() {
 
       expect(find.text('09:00 AM'), findsOneWidget);
       expect(find.text('Midday'), findsOneWidget);
+    });
+
+    testWidgets('shows export button and loading indicator while exporting', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+
+      Future<PdfExportResult> fakeExport(
+        Itinerary input, {
+        DocumentsDirectoryLoader? loadDocumentsDirectory,
+      }) async {
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        return const PdfExportResult(
+          bytes: <int>[1, 2, 3],
+          filePath: '/tmp/itinerary.pdf',
+          fileName: 'itinerary.pdf',
+        );
+      }
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+            pdfGeneratorProvider.overrideWithValue(fakeExport),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Export PDF'), findsOneWidget);
+
+      await tester.tap(find.text('Export PDF'));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Exporting...'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
     });
   });
 }
