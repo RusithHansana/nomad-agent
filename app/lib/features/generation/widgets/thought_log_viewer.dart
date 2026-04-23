@@ -15,6 +15,7 @@ class ThoughtLogViewer extends StatelessWidget {
     required this.isError,
     required this.errorMessage,
     required this.onRetry,
+    this.currentStep,
     super.key,
   });
 
@@ -25,6 +26,7 @@ class ThoughtLogViewer extends StatelessWidget {
   final bool isError;
   final String? errorMessage;
   final VoidCallback onRetry;
+  final String? currentStep;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +46,9 @@ class ThoughtLogViewer extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '🔍 Researching your trip to $destination...',
+                currentStep == 'extractor'
+                    ? '🧠 Analyzing results for $destination...'
+                    : '🔍 Researching your trip to $destination...',
                 style: AppTypography.h3(color: textColor),
               ),
             ),

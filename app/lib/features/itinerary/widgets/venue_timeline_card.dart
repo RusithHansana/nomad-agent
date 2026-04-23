@@ -7,6 +7,7 @@ import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 
 import 'verification_badge.dart';
+import 'venue_type_label.dart';
 
 class VenueTimelineCard extends StatefulWidget {
   const VenueTimelineCard({
@@ -49,6 +50,10 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textPrimary = colorScheme.onSurface;
+    final textSecondary = colorScheme.onSurfaceVariant;
+    final primaryColor = colorScheme.primary;
     final openingHoursText = _openingHoursText(widget.venue.openingHours);
     final statusText = _openingStatus(openingHoursText);
     final badgeType = _badgeType(widget.venue);
@@ -77,7 +82,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                     Text(
                       _timeLabel(widget.venue, widget.index),
                       style: AppTypography.caption(
-                        color: AppColors.textSecondary,
+                        color: textSecondary,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -86,16 +91,16 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                         Container(
                           width: AppSpacing.xs,
                           height: AppSpacing.xs,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.primary,
+                            color: primaryColor,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Expanded(
                           child: Container(
                             height: 1,
-                            color: AppColors.primary.withValues(alpha: 0.25),
+                            color: primaryColor.withValues(alpha: 0.25),
                           ),
                         ),
                       ],
@@ -121,7 +126,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                               Text(
                                 widget.venue.name,
                                 style: AppTypography.h3(
-                                  color: AppColors.textPrimary,
+                                  color: textPrimary,
                                 ),
                               ),
                               VerificationBadge(
@@ -134,7 +139,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                           Text(
                             widget.venue.name,
                             style: AppTypography.h3(
-                              color: AppColors.textPrimary,
+                              color: textPrimary,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
@@ -147,7 +152,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                         Text(
                           widget.venue.address,
                           style: AppTypography.bodySmall(
-                            color: AppColors.textSecondary,
+                            color: textSecondary,
                           ),
                         ),
                         if (badgeType != VerificationBadgeType.verified &&
@@ -166,7 +171,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                           Text(
                             openingHoursText,
                             style: AppTypography.bodySmall(
-                              color: AppColors.textSecondary,
+                              color: textSecondary,
                             ),
                           ),
                           if (statusText != null)
@@ -193,14 +198,19 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                               Text(
                                 '★ ${widget.venue.rating!.toStringAsFixed(1)}',
                                 style: AppTypography.bodySmall(
-                                  color: AppColors.textPrimary,
+                                  color: textPrimary,
                                 ),
+                              ),
+                            if (widget.venue.venueType != null)
+                              VenueTypeLabel(
+                                type: widget.venue.venueType!,
+                                color: textPrimary,
                               ),
                             if (_costText(widget.venue) != null)
                               Text(
                                 _costText(widget.venue)!,
                                 style: AppTypography.bodySmall(
-                                  color: AppColors.textPrimary,
+                                  color: textPrimary,
                                 ),
                               ),
                           ],
@@ -211,7 +221,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                           child: Text(
                             'View source →',
                             style: AppTypography.bodySmall(
-                              color: AppColors.primary,
+                              color: primaryColor,
                             ),
                           ),
                         ),

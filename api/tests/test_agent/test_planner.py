@@ -36,7 +36,7 @@ async def test_planner_parses_duration_destination_and_limits_tasks() -> None:
     assert [task["name"] for task in result["tasks"]] == [
         "Local Research",
         "Event Checking",
-        "Route Optimization",
+        "Interest Deep-Dive",
     ]
 
 

@@ -1,1 +1,1 @@
-"""Agent graph nodes for prompt planning, research, and compilation."""
+"""Agent graph nodes for prompt planning, research, extraction, and compilation."""

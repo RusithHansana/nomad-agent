@@ -42,6 +42,41 @@ DURATION_WORDS = {
     "ten": 10,
 }
 
+INTEREST_DEEP_DIVE_QUERIES: dict[str, str] = {
+    "food": (
+        "best reviewed restaurants and street food stalls"
+        " in {destination} with ratings and specialties"
+    ),
+    "culture": (
+        "must-visit museums, temples, and cultural sites"
+        " in {destination} with visitor reviews"
+    ),
+    "nature": (
+        "best hiking trails and nature spots"
+        " in {destination} with difficulty ratings and distances"
+    ),
+    "nightlife": (
+        "top rated bars, clubs, and live music venues"
+        " in {destination} with reviews"
+    ),
+    "shopping": (
+        "best local markets and shopping districts"
+        " in {destination} with opening hours"
+    ),
+    "family": (
+        "family-friendly attractions and activities"
+        " in {destination} with age recommendations"
+    ),
+    "adventure": (
+        "adventure activities and outdoor sports"
+        " in {destination} with pricing and reviews"
+    ),
+}
+
+DEFAULT_DEEP_DIVE_QUERY = (
+    "top rated and most popular places to visit in {destination} with reviews"
+)
+
 
 def _build_invalid_prompt_event() -> dict[str, object]:
     event = ErrorEvent(
@@ -110,6 +145,10 @@ def _extract_interest_categories(prompt: str) -> list[str]:
 
 def _build_research_tasks(destination: str, interests: list[str]) -> list[dict[str, str]]:
     interest_phrase = ", ".join(interests[:3])
+    primary_interest = interests[0] if interests else "culture"
+    deep_dive_template = INTEREST_DEEP_DIVE_QUERIES.get(
+        primary_interest, DEFAULT_DEEP_DIVE_QUERY
+    )
     tasks = [
         {
             "name": "Local Research",
@@ -126,11 +165,8 @@ def _build_research_tasks(destination: str, interests: list[str]) -> list[dict[s
             ),
         },
         {
-            "name": "Route Optimization",
-            "query": (
-                f"Efficient travel routes between popular {interest_phrase} spots in {destination} "
-                "for itinerary planning"
-            ),
+            "name": "Interest Deep-Dive",
+            "query": deep_dive_template.format(destination=destination),
         },
     ]
     return tasks[:MAX_TASKS]

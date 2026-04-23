@@ -11,6 +11,7 @@ class Venue {
     this.sourceUrl,
     this.timeSlot,
     required this.isVerified,
+    this.venueType,
     this.verificationNote,
   });
 
@@ -25,6 +26,7 @@ class Venue {
   final String? sourceUrl;
   final String? timeSlot;
   final bool isVerified;
+  final String? venueType;
   final String? verificationNote;
 
   factory Venue.fromJson(Map<String, Object?> json) {
@@ -42,6 +44,7 @@ class Venue {
       sourceUrl: json['source_url'] as String?,
       timeSlot: json['time_slot'] as String?,
       isVerified: (json['is_verified'] as bool?) ?? false,
+      venueType: json['venue_type'] as String?,
       verificationNote: json['verification_note'] as String?,
     );
   }
@@ -72,6 +75,9 @@ class Venue {
     if (timeSlot != null) {
       map['time_slot'] = timeSlot;
     }
+    if (venueType != null) {
+      map['venue_type'] = venueType;
+    }
     if (verificationNote != null) {
       map['verification_note'] = verificationNote;
     }
@@ -90,6 +96,7 @@ class Venue {
     String? sourceUrl,
     String? timeSlot,
     bool? isVerified,
+    String? venueType,
     String? verificationNote,
   }) {
     return Venue(
@@ -104,6 +111,7 @@ class Venue {
       sourceUrl: sourceUrl ?? this.sourceUrl,
       timeSlot: timeSlot ?? this.timeSlot,
       isVerified: isVerified ?? this.isVerified,
+      venueType: venueType ?? this.venueType,
       verificationNote: verificationNote ?? this.verificationNote,
     );
   }

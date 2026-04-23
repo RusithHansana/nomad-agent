@@ -10,11 +10,13 @@ class MapVenuePin extends StatefulWidget {
     required this.number,
     required this.isVerified,
     required this.index,
+    this.venueType,
   });
 
   final int number;
   final bool isVerified;
   final int index;
+  final String? venueType;
 
   @override
   State<MapVenuePin> createState() => _MapVenuePinState();
@@ -75,20 +77,47 @@ class _MapVenuePinState extends State<MapVenuePin> {
             border: Border.all(color: AppColors.onSecondary, width: 2),
             boxShadow: [
               BoxShadow(
-                color: AppColors.textPrimary.withValues(alpha: 0.13),
+                color: Colors.black.withValues(alpha: 0.13),
                 blurRadius: 6,
                 offset: Offset(0, 2),
               ),
             ],
           ),
-          child: Text(
-            '${widget.number}',
-            style: AppTypography.bodySmall(
-              color: AppColors.onSecondary,
-            ).copyWith(fontWeight: FontWeight.w700),
-          ),
+          child: _buildPinContent(),
         ),
       ),
+    );
+  }
+
+  Widget _buildPinContent() {
+    final type = widget.venueType?.toLowerCase() ?? '';
+    IconData? icon;
+
+    if (type == 'restaurant') {
+      icon = Icons.restaurant;
+    } else if (type == 'nature') {
+      icon = Icons.park;
+    } else if (type == 'event') {
+      icon = Icons.event;
+    } else if (type == 'tour') {
+      icon = Icons.directions_bus;
+    } else if (type == 'attraction') {
+      icon = Icons.local_see;
+    }
+
+    if (icon != null) {
+      return Icon(
+        icon,
+        size: 16,
+        color: AppColors.onSecondary,
+      );
+    }
+
+    return Text(
+      '${widget.number}',
+      style: AppTypography.bodySmall(
+        color: AppColors.onSecondary,
+      ).copyWith(fontWeight: FontWeight.w700),
     );
   }
 }
