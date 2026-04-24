@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_spacing.dart';
 import '../../core/models/itinerary.dart';
+import '../../core/theme/app_colors.dart';
 import '../pdf/providers/pdf_export_provider.dart';
+import '../pdf/share_service.dart';
 
 import '../../core/theme/app_typography.dart';
 import 'providers/itinerary_store_provider.dart';
@@ -27,37 +31,44 @@ class ItineraryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final itinerary = ref.watch(
+      itineraryStoreProvider.select((store) => store[id]),
+    );
+
     ref.listen<PdfExportState>(pdfExportControllerProvider, (previous, next) {
       if (previous?.status == next.status) {
         return;
       }
 
       if (next.status == PdfExportStatus.ready && next.filePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF saved to ${next.filePath}')),
+        unawaited(
+          _handlePdfShareAndSuccess(
+            context,
+            ref,
+            filePath: next.filePath!,
+            itinerary: itinerary,
+          ),
         );
-        ref.read(pdfExportControllerProvider.notifier).reset();
       }
 
       if (next.status == PdfExportStatus.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              next.errorMessage ??
-                  'Unable to export PDF right now. Please try again.',
-            ),
-          ),
+        _showExportErrorSnackbar(
+          context,
+          onRetry: () {
+            ref
+                .read(pdfExportControllerProvider.notifier)
+                .export(itinerary: itinerary);
+          },
         );
       }
     });
 
-    final itinerary = ref.watch(
-      itineraryStoreProvider.select((store) => store[id]),
-    );
+    final exportState = ref.watch(pdfExportControllerProvider);
+    final isGenerating = exportState.status == PdfExportStatus.generating;
+    final canPop = _canPop(context);
 
     if (itinerary == null) {
       final colorScheme = Theme.of(context).colorScheme;
-      final canPop = _canPop(context);
       return PopScope(
         canPop: canPop,
         onPopInvokedWithResult: (didPop, result) {
@@ -100,6 +111,32 @@ class ItineraryScreen extends ConsumerWidget {
                     },
                     child: const Text('Back'),
                   ),
+                  const SizedBox(height: AppSpacing.sm),
+                  FilledButton(
+                    onPressed: isGenerating
+                        ? null
+                        : () {
+                            ref
+                                .read(pdfExportControllerProvider.notifier)
+                                .export();
+                          },
+                    child: isGenerating
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: AppSpacing.sm),
+                              Text('Exporting...'),
+                            ],
+                          )
+                        : const Text('Export PDF'),
+                  ),
                 ],
               ),
             ),
@@ -109,9 +146,6 @@ class ItineraryScreen extends ConsumerWidget {
     }
 
     final launcher = ref.read(sourceUrlLauncherProvider);
-    final exportState = ref.watch(pdfExportControllerProvider);
-    final isGenerating = exportState.status == PdfExportStatus.generating;
-    final canPop = _canPop(context);
 
     return PopScope(
       canPop: canPop,
@@ -160,7 +194,7 @@ class ItineraryScreen extends ConsumerWidget {
                     : () {
                         ref
                             .read(pdfExportControllerProvider.notifier)
-                            .export(itinerary);
+                            .export(itinerary: itinerary);
                       },
                 child: isGenerating
                     ? const Row(
@@ -258,6 +292,62 @@ class _TimelineTab extends StatelessWidget {
       },
     );
   }
+}
+
+Future<void> _handlePdfShareAndSuccess(
+  BuildContext context,
+  WidgetRef ref, {
+  required String filePath,
+  required Itinerary? itinerary,
+}) async {
+  try {
+    await ref.read(pdfShareServiceProvider).sharePdf(filePath);
+  } catch (_) {
+    if (!context.mounted) {
+      return;
+    }
+    _showExportErrorSnackbar(
+      context,
+      onRetry: () {
+        ref
+            .read(pdfExportControllerProvider.notifier)
+            .export(itinerary: itinerary);
+      },
+    );
+    return;
+  }
+
+  if (!context.mounted) {
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      duration: const Duration(seconds: 3),
+      backgroundColor: AppColors.success,
+      content: const Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.white),
+          SizedBox(width: AppSpacing.sm),
+          Text('Itinerary exported!'),
+        ],
+      ),
+    ),
+  );
+  ref.read(pdfExportControllerProvider.notifier).reset();
+}
+
+void _showExportErrorSnackbar(
+  BuildContext context, {
+  required VoidCallback onRetry,
+}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      backgroundColor: AppColors.error,
+      content: const Text('Export failed. Please try again.'),
+      action: SnackBarAction(label: 'Retry', onPressed: onRetry),
+    ),
+  );
 }
 
 bool _canPop(BuildContext context) {

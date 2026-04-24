@@ -1,4 +1,5 @@
 import 'package:app/core/models/itinerary.dart';
+import 'package:app/core/storage/itinerary_cache.dart';
 import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,7 +52,7 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
     return const PdfExportState.idle();
   }
 
-  Future<void> export(Itinerary itinerary) async {
+  Future<void> export({Itinerary? itinerary}) async {
     if (state.status == PdfExportStatus.generating) {
       return;
     }
@@ -59,7 +60,13 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
     state = const PdfExportState(status: PdfExportStatus.generating);
 
     try {
-      final result = await ref.read(pdfGeneratorProvider)(itinerary);
+      final itineraryToExport =
+          itinerary ?? await ref.read(itineraryCacheProvider).loadLatest();
+      if (itineraryToExport == null) {
+        throw StateError('No itinerary available for offline export.');
+      }
+
+      final result = await ref.read(pdfGeneratorProvider)(itineraryToExport);
       state = PdfExportState(
         status: PdfExportStatus.ready,
         filePath: result.filePath,
@@ -67,7 +74,7 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
     } catch (_) {
       state = const PdfExportState(
         status: PdfExportStatus.error,
-        errorMessage: 'Unable to export PDF right now. Please try again.',
+        errorMessage: 'Export failed. Please try again.',
       );
     }
   }

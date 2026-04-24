@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/sse_event.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/sse_parser.dart';
+import '../../../core/storage/itinerary_cache.dart';
 import '../../itinerary/providers/itinerary_store_provider.dart';
 
 typedef GenerationStreamFactory =
@@ -310,6 +311,7 @@ class GenerationController
         timestamp: event.timestamp,
       );
       ref.read(itineraryStoreProvider.notifier).upsert(event.itinerary);
+      unawaited(ref.read(itineraryCacheProvider).save(event.itinerary));
       _isTerminal = true;
       _elapsedTimer?.cancel();
       _coldStartTimer?.cancel();

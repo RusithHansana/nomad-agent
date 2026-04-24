@@ -1,9 +1,11 @@
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
+import 'package:app/core/storage/itinerary_cache.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
 import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:app/features/pdf/providers/pdf_export_provider.dart';
+import 'package:app/features/pdf/share_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -316,6 +318,141 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
     });
+
+    testWidgets('shares exported file and shows success snackbar', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+      final shareService = _FakePdfShareService();
+
+      Future<PdfExportResult> fakeExport(
+        Itinerary input, {
+        DocumentsDirectoryLoader? loadDocumentsDirectory,
+      }) async {
+        return const PdfExportResult(
+          bytes: <int>[1, 2, 3],
+          filePath: '/tmp/shared_itinerary.pdf',
+          fileName: 'shared_itinerary.pdf',
+        );
+      }
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+            pdfGeneratorProvider.overrideWithValue(fakeExport),
+            pdfShareServiceProvider.overrideWithValue(shareService),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Export PDF'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(shareService.sharedFilePaths, <String>[
+        '/tmp/shared_itinerary.pdf',
+      ]);
+      expect(find.text('Itinerary exported!'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    });
+
+    testWidgets('exports from cached itinerary when store entry is missing', (
+      tester,
+    ) async {
+      final cachedItinerary = _sampleItinerary();
+      final cache = _FakeItineraryCache(latest: cachedItinerary);
+      final shareService = _FakePdfShareService();
+      Itinerary? exportedItinerary;
+
+      Future<PdfExportResult> fakeExport(
+        Itinerary input, {
+        DocumentsDirectoryLoader? loadDocumentsDirectory,
+      }) async {
+        exportedItinerary = input;
+        return const PdfExportResult(
+          bytes: <int>[1, 2, 3],
+          filePath: '/tmp/cached_itinerary.pdf',
+          fileName: 'cached_itinerary.pdf',
+        );
+      }
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: 'missing-itinerary-id',
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(const <String, Itinerary>{}),
+            ),
+            itineraryCacheProvider.overrideWithValue(cache),
+            pdfGeneratorProvider.overrideWithValue(fakeExport),
+            pdfShareServiceProvider.overrideWithValue(shareService),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Itinerary not found.'), findsOneWidget);
+
+      await tester.tap(find.text('Export PDF'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(exportedItinerary?.generatedAt, cachedItinerary.generatedAt);
+      expect(shareService.sharedFilePaths, <String>[
+        '/tmp/cached_itinerary.pdf',
+      ]);
+    });
+
+    testWidgets('shows error snackbar with retry action when export fails', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+      var exportAttempts = 0;
+
+      Future<PdfExportResult> fakeExport(
+        Itinerary input, {
+        DocumentsDirectoryLoader? loadDocumentsDirectory,
+      }) async {
+        exportAttempts += 1;
+        throw Exception('export failed');
+      }
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+            pdfGeneratorProvider.overrideWithValue(fakeExport),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Export PDF'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Export failed. Please try again.'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(exportAttempts, 1);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(exportAttempts, 2);
+    });
   });
 }
 
@@ -340,6 +477,31 @@ class _FakeItineraryStoreNotifier extends ItineraryStoreNotifier {
   @override
   Map<String, Itinerary> build() {
     return _initialState;
+  }
+}
+
+class _FakePdfShareService implements PdfShareService {
+  final List<String> sharedFilePaths = <String>[];
+
+  @override
+  Future<void> sharePdf(String filePath) async {
+    sharedFilePaths.add(filePath);
+  }
+}
+
+class _FakeItineraryCache implements ItineraryCache {
+  _FakeItineraryCache({this.latest});
+
+  Itinerary? latest;
+
+  @override
+  Future<Itinerary?> loadLatest() async {
+    return latest;
+  }
+
+  @override
+  Future<void> save(Itinerary itinerary) async {
+    latest = itinerary;
   }
 }
 
