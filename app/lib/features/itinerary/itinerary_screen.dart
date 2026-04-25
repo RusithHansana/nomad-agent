@@ -52,6 +52,9 @@ class ItineraryScreen extends ConsumerWidget {
       }
 
       if (next.status == PdfExportStatus.error) {
+        if (!context.mounted) {
+          return;
+        }
         _showExportErrorSnackbar(
           context,
           onRetry: () {
@@ -324,12 +327,15 @@ Future<void> _handlePdfShareAndSuccess(
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       duration: const Duration(seconds: 3),
-      backgroundColor: AppColors.success,
-      content: const Row(
+      backgroundColor: AppColors.surfaceLight,
+      content: Row(
         children: [
-          Icon(Icons.check_circle, color: Colors.white),
-          SizedBox(width: AppSpacing.sm),
-          Text('Itinerary exported!'),
+          const Icon(Icons.check_circle, color: AppColors.success),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            'Itinerary exported!',
+            style: AppTypography.body(color: AppColors.textPrimary),
+          ),
         ],
       ),
     ),
@@ -379,5 +385,11 @@ void _navigateToHome(BuildContext context) {
   final router = GoRouter.maybeOf(context);
   if (router != null) {
     router.go('/');
+    return;
+  }
+
+  final navigator = Navigator.of(context);
+  if (navigator.canPop()) {
+    navigator.popUntil((route) => route.isFirst);
   }
 }

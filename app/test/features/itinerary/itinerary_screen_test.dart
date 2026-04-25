@@ -286,7 +286,6 @@ void main() {
       }) async {
         await Future<void>.delayed(const Duration(milliseconds: 120));
         return const PdfExportResult(
-          bytes: <int>[1, 2, 3],
           filePath: '/tmp/itinerary.pdf',
           fileName: 'itinerary.pdf',
         );
@@ -330,7 +329,6 @@ void main() {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
       }) async {
         return const PdfExportResult(
-          bytes: <int>[1, 2, 3],
           filePath: '/tmp/shared_itinerary.pdf',
           fileName: 'shared_itinerary.pdf',
         );
@@ -377,7 +375,6 @@ void main() {
       }) async {
         exportedItinerary = input;
         return const PdfExportResult(
-          bytes: <int>[1, 2, 3],
           filePath: '/tmp/cached_itinerary.pdf',
           fileName: 'cached_itinerary.pdf',
         );

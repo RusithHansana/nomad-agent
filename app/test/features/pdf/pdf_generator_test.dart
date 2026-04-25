@@ -19,17 +19,22 @@ void main() {
       }
     });
 
-    test('returns non-empty bytes for special characters', () async {
-      final itinerary = _sampleItineraryWithSpecialCharacters();
+    test(
+      'generates and writes a non-empty PDF for special characters',
+      () async {
+        final itinerary = _sampleItineraryWithSpecialCharacters();
 
-      final result = await generateItineraryPdf(
-        itinerary,
-        loadDocumentsDirectory: () async => tempDirectory,
-      );
+        final result = await generateItineraryPdf(
+          itinerary,
+          loadDocumentsDirectory: () async => tempDirectory,
+        );
 
-      expect(result.bytes, isNotEmpty);
-      expect(result.fileName, contains('_itinerary.pdf'));
-    });
+        final file = File(result.filePath);
+        expect(file.existsSync(), isTrue);
+        expect(file.lengthSync(), greaterThan(0));
+        expect(result.fileName, contains('_itinerary.pdf'));
+      },
+    );
 
     test('writes exported pdf into documents/exports folder', () async {
       final itinerary = _sampleItineraryWithSpecialCharacters();

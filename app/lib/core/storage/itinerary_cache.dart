@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:app/core/models/itinerary.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -79,6 +80,8 @@ class FileItineraryCache implements ItineraryCache {
     } on MissingPlatformDirectoryException {
       return null;
     } on FileSystemException {
+      return null;
+    } on PlatformException {
       return null;
     }
   }

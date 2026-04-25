@@ -83,7 +83,7 @@ class GenerationViewState {
     Object? errorMessage = _noChange,
     String? itineraryId,
     bool? hasAttemptedReconnect,
-    String? currentStep,
+    Object? currentStep = _noChange,
   }) {
     return GenerationViewState(
       destinationDisplay: destinationDisplay ?? this.destinationDisplay,
@@ -98,7 +98,9 @@ class GenerationViewState {
       itineraryId: itineraryId ?? this.itineraryId,
       hasAttemptedReconnect:
           hasAttemptedReconnect ?? this.hasAttemptedReconnect,
-      currentStep: currentStep ?? this.currentStep,
+      currentStep: identical(currentStep, _noChange)
+          ? this.currentStep
+          : currentStep as String?,
     );
   }
 }
@@ -311,7 +313,12 @@ class GenerationController
         timestamp: event.timestamp,
       );
       ref.read(itineraryStoreProvider.notifier).upsert(event.itinerary);
-      unawaited(ref.read(itineraryCacheProvider).save(event.itinerary));
+      unawaited(
+        ref
+            .read(itineraryCacheProvider)
+            .save(event.itinerary)
+            .catchError((_) => null),
+      );
       _isTerminal = true;
       _elapsedTimer?.cancel();
       _coldStartTimer?.cancel();

@@ -12,13 +12,8 @@ import 'package:pdf/widgets.dart' as pw;
 typedef DocumentsDirectoryLoader = Future<Directory> Function();
 
 class PdfExportResult {
-  const PdfExportResult({
-    required this.bytes,
-    required this.filePath,
-    required this.fileName,
-  });
+  const PdfExportResult({required this.filePath, required this.fileName});
 
-  final List<int> bytes;
   final String filePath;
   final String fileName;
 }
@@ -53,16 +48,17 @@ Future<PdfExportResult> generateItineraryPdf(
   final directoryLoader =
       loadDocumentsDirectory ?? getApplicationDocumentsDirectory;
   final rootDirectory = await directoryLoader();
-  final exportDirectory = Directory('${rootDirectory.path}/exports');
+  final exportDirectory = Directory(_joinPath(rootDirectory.path, 'exports'));
   await exportDirectory.create(recursive: true);
 
   final safeDestination = _sanitizeFileSegment(itinerary.destination);
-  final timestamp = DateFormat('yyyyMMdd_HHmmss').format(generatedAt.toUtc());
+  final exportedAt = DateTime.now().toUtc();
+  final timestamp = DateFormat('yyyyMMdd_HHmmss').format(exportedAt);
   final fileName = '${timestamp}_${safeDestination}_itinerary.pdf';
-  final file = File('${exportDirectory.path}/$fileName');
+  final file = File(_joinPath(exportDirectory.path, fileName));
   await file.writeAsBytes(bytes, flush: true);
 
-  return PdfExportResult(bytes: bytes, filePath: file.path, fileName: fileName);
+  return PdfExportResult(filePath: file.path, fileName: fileName);
 }
 
 pw.Widget _buildHeader({
@@ -104,7 +100,7 @@ pw.Widget _buildHeader({
     decoration: pw.BoxDecoration(
       borderRadius: pw.BorderRadius.circular(10),
       color: bottomColor,
-      border: pw.Border.all(color: PdfColors.grey400),
+      border: pw.Border.all(color: _pdfColorFrom(AppColors.secondaryVariant)),
     ),
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -197,7 +193,10 @@ pw.Widget _buildDaySection(DayPlan day) {
           )
         else
           pw.Table(
-            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            border: pw.TableBorder.all(
+              color: _pdfColorFrom(AppColors.secondaryVariant),
+              width: 0.5,
+            ),
             columnWidths: const {
               0: pw.FlexColumnWidth(2.2),
               1: pw.FlexColumnWidth(2.2),
@@ -214,7 +213,7 @@ pw.Widget _buildDaySection(DayPlan day) {
 
 pw.TableRow _buildTableHeader() {
   return pw.TableRow(
-    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+    decoration: pw.BoxDecoration(color: _pdfColorFrom(AppColors.background)),
     children: [
       _cell('Venue', isHeader: true),
       _cell('Address', isHeader: true),
@@ -252,7 +251,7 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(14),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey400),
+        border: pw.Border.all(color: _pdfColorFrom(AppColors.secondaryVariant)),
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Text(
@@ -301,13 +300,15 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary) {
           height: 16,
           decoration: pw.BoxDecoration(
             shape: pw.BoxShape.circle,
-            color: venue.isVerified ? PdfColors.green700 : PdfColors.orange700,
+            color: venue.isVerified
+                ? _pdfColorFrom(AppColors.success)
+                : _pdfColorFrom(AppColors.warning),
           ),
           alignment: pw.Alignment.center,
           child: pw.Text(
             '${index + 1}',
             style: pw.TextStyle(
-              color: PdfColors.white,
+              color: _pdfColorFrom(AppColors.onSecondary),
               fontSize: 8,
               fontWeight: pw.FontWeight.bold,
             ),
@@ -334,7 +335,9 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary) {
         height: mapHeight,
         decoration: pw.BoxDecoration(
           color: _pdfColorFrom(AppColors.surfaceLight),
-          border: pw.Border.all(color: PdfColors.grey400),
+          border: pw.Border.all(
+            color: _pdfColorFrom(AppColors.secondaryVariant),
+          ),
           borderRadius: pw.BorderRadius.circular(8),
         ),
         child: pw.Stack(children: markers),
@@ -344,8 +347,8 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary) {
         spacing: 12,
         runSpacing: 4,
         children: [
-          _legendChip('Verified', PdfColors.green700),
-          _legendChip('Unverified', PdfColors.orange700),
+          _legendChip('Verified', _pdfColorFrom(AppColors.success)),
+          _legendChip('Unverified', _pdfColorFrom(AppColors.warning)),
         ],
       ),
     ],
@@ -379,7 +382,7 @@ pw.Widget _buildCostSummary(Itinerary itinerary) {
     padding: const pw.EdgeInsets.all(12),
     decoration: pw.BoxDecoration(
       borderRadius: pw.BorderRadius.circular(8),
-      border: pw.Border.all(color: PdfColors.grey400),
+      border: pw.Border.all(color: _pdfColorFrom(AppColors.secondaryVariant)),
       color: _pdfColorFrom(AppColors.surfaceLight),
     ),
     child: pw.Column(
@@ -406,7 +409,7 @@ pw.Widget _buildCostSummary(Itinerary itinerary) {
             ),
           );
         }),
-        pw.Divider(color: PdfColors.grey400),
+        pw.Divider(color: _pdfColorFrom(AppColors.secondaryVariant)),
         ...categories.entries.map((entry) {
           return pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 3),
@@ -416,7 +419,7 @@ pw.Widget _buildCostSummary(Itinerary itinerary) {
             ),
           );
         }),
-        pw.Divider(color: PdfColors.grey400),
+        pw.Divider(color: _pdfColorFrom(AppColors.secondaryVariant)),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -501,7 +504,7 @@ String _sanitizeFileSegment(String raw) {
 
 String _sanitizeText(String? text) {
   if (text == null || text.isEmpty) {
-    return '';
+    return 'N/A';
   }
 
   final sanitized = StringBuffer();
@@ -524,6 +527,13 @@ String _sanitizeText(String? text) {
     return 'N/A';
   }
   return normalized;
+}
+
+String _joinPath(String left, String right) {
+  if (left.endsWith(Platform.pathSeparator)) {
+    return '$left$right';
+  }
+  return '$left${Platform.pathSeparator}$right';
 }
 
 PdfColor _pdfColorFrom(Color color) {
