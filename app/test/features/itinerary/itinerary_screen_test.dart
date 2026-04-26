@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/core/storage/itinerary_cache.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
+import 'package:app/features/itinerary/providers/map_snapshot_provider.dart';
 import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:app/features/pdf/providers/pdf_export_provider.dart';
 import 'package:app/features/pdf/share_service.dart';
@@ -283,6 +286,7 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
+        Uint8List? mapSnapshot,
       }) async {
         await Future<void>.delayed(const Duration(milliseconds: 120));
         return const PdfExportResult(
@@ -301,6 +305,9 @@ void main() {
               }),
             ),
             pdfGeneratorProvider.overrideWithValue(fakeExport),
+            mapSnapshotProvider.overrideWith(
+              (ref) => Uint8List.fromList([0]),
+            ),
           ],
         ),
       );
@@ -327,6 +334,7 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
+        Uint8List? mapSnapshot,
       }) async {
         return const PdfExportResult(
           filePath: '/tmp/shared_itinerary.pdf',
@@ -345,6 +353,9 @@ void main() {
             ),
             pdfGeneratorProvider.overrideWithValue(fakeExport),
             pdfShareServiceProvider.overrideWithValue(shareService),
+            mapSnapshotProvider.overrideWith(
+              (ref) => Uint8List.fromList([0]),
+            ),
           ],
         ),
       );
@@ -372,6 +383,7 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
+        Uint8List? mapSnapshot,
       }) async {
         exportedItinerary = input;
         return const PdfExportResult(
@@ -416,6 +428,7 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
+        Uint8List? mapSnapshot,
       }) async {
         exportAttempts += 1;
         throw Exception('export failed');
@@ -431,6 +444,9 @@ void main() {
               }),
             ),
             pdfGeneratorProvider.overrideWithValue(fakeExport),
+            mapSnapshotProvider.overrideWith(
+              (ref) => Uint8List.fromList([0]),
+            ),
           ],
         ),
       );

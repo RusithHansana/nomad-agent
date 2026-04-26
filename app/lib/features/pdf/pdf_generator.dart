@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
@@ -22,6 +23,7 @@ class PdfExportResult {
 Future<PdfExportResult> generateItineraryPdf(
   Itinerary itinerary, {
   DocumentsDirectoryLoader? loadDocumentsDirectory,
+  Uint8List? mapSnapshot,
 }) async {
   final baseFont = pw.Font.ttf(
     await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'),
@@ -53,7 +55,7 @@ Future<PdfExportResult> generateItineraryPdf(
           pw.SizedBox(height: 20),
           ...itinerary.days.map(_buildDaySection),
           pw.SizedBox(height: 18),
-          pw.Container(child: _buildMapSnapshot(itinerary)),
+          pw.Container(child: _buildMapSnapshot(itinerary, mapSnapshot: mapSnapshot)),
           pw.SizedBox(height: 18),
           pw.Container(child: _buildCostSummary(itinerary)),
         ];
@@ -251,7 +253,7 @@ pw.TableRow _buildVenueRow(Venue venue) {
   );
 }
 
-pw.Widget _buildMapSnapshot(Itinerary itinerary) {
+pw.Widget _buildMapSnapshot(Itinerary itinerary, {Uint8List? mapSnapshot}) {
   final venues = itinerary.days
       .expand((day) => day.venues)
       .where(_hasValidCoordinates)
@@ -268,6 +270,42 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary) {
         'Map unavailable for this itinerary yet.',
         style: const pw.TextStyle(fontSize: 11),
       ),
+    );
+  }
+
+  // If we have a captured map snapshot, use it as the map image
+  if (mapSnapshot != null) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Static Map Snapshot',
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+            color: _pdfColorFrom(AppColors.textPrimary),
+          ),
+        ),
+        pw.SizedBox(height: 6),
+        pw.ClipRRect(
+          horizontalRadius: 8,
+          verticalRadius: 8,
+          child: pw.Image(
+            pw.MemoryImage(mapSnapshot),
+            width: 500,
+            fit: pw.BoxFit.fitWidth,
+          ),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Wrap(
+          spacing: 12,
+          runSpacing: 4,
+          children: [
+            _legendChip('Verified', _pdfColorFrom(AppColors.success)),
+            _legendChip('Unverified', _pdfColorFrom(AppColors.warning)),
+          ],
+        ),
+      ],
     );
   }
 
