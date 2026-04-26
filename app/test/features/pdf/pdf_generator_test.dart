@@ -6,6 +6,8 @@ import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('generateItineraryPdf', () {
     late Directory tempDirectory;
 

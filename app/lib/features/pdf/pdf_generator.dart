@@ -4,6 +4,7 @@ import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -22,7 +23,23 @@ Future<PdfExportResult> generateItineraryPdf(
   Itinerary itinerary, {
   DocumentsDirectoryLoader? loadDocumentsDirectory,
 }) async {
-  final document = pw.Document();
+  final baseFont = pw.Font.ttf(
+    await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'),
+  );
+  final boldFont = pw.Font.ttf(
+    await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'),
+  );
+  final cjkFont = pw.Font.ttf(
+    await rootBundle.load('assets/fonts/NotoSansJP-Regular.ttf'),
+  );
+
+  final document = pw.Document(
+    theme: pw.ThemeData.withFont(
+      base: baseFont,
+      bold: boldFont,
+      fontFallback: [cjkFont],
+    ),
+  );
   final generatedAt = _resolveGeneratedAt(itinerary.generatedAt);
 
   document.addPage(
@@ -36,9 +53,9 @@ Future<PdfExportResult> generateItineraryPdf(
           pw.SizedBox(height: 20),
           ...itinerary.days.map(_buildDaySection),
           pw.SizedBox(height: 18),
-          _buildMapSnapshot(itinerary),
+          pw.Container(child: _buildMapSnapshot(itinerary)),
           pw.SizedBox(height: 18),
-          _buildCostSummary(itinerary),
+          pw.Container(child: _buildCostSummary(itinerary)),
         ];
       },
     ),
@@ -71,24 +88,17 @@ pw.Widget _buildHeader({
   final textColor = _pdfColorFrom(AppColors.textPrimary);
   final subColor = _pdfColorFrom(AppColors.textSecondary);
 
-  final firstDate = itinerary.days
-      .map((day) => _tryParseDate(day.date))
-      .whereType<DateTime>()
-      .fold<DateTime?>(null, (current, next) {
-        if (current == null || next.isBefore(current)) {
-          return next;
-        }
-        return current;
-      });
-  final lastDate = itinerary.days
-      .map((day) => _tryParseDate(day.date))
-      .whereType<DateTime>()
-      .fold<DateTime?>(null, (current, next) {
-        if (current == null || next.isAfter(current)) {
-          return next;
-        }
-        return current;
-      });
+  final dates = itinerary.days.map((day) {
+    return _tryParseDate(day.date) ??
+        generatedAt.add(Duration(days: day.dayNumber - 1));
+  }).toList();
+
+  final firstDate = dates.isEmpty
+      ? null
+      : dates.reduce((a, b) => a.isBefore(b) ? a : b);
+  final lastDate = dates.isEmpty
+      ? null
+      : dates.reduce((a, b) => a.isAfter(b) ? a : b);
 
   final dateRange = switch ((firstDate, lastDate)) {
     (DateTime first, DateTime last) =>
@@ -515,11 +525,7 @@ String _sanitizeText(String? text) {
       continue;
     }
 
-    if (rune <= 0xFF) {
-      sanitized.writeCharCode(rune);
-    } else {
-      sanitized.write('?');
-    }
+    sanitized.writeCharCode(rune);
   }
 
   final normalized = sanitized.toString().trim();
