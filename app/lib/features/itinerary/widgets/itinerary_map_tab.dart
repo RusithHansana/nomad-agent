@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:app/core/constants/app_spacing.dart';
 import 'package:app/core/models/itinerary.dart';
@@ -6,14 +7,17 @@ import 'package:app/core/models/venue.dart';
 import 'package:app/core/theme/app_colors.dart';
 import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../providers/map_snapshot_provider.dart';
 import 'map_venue_pin.dart';
 import 'verification_badge.dart';
 import 'venue_type_label.dart';
 
-class ItineraryMapTab extends StatefulWidget {
+class ItineraryMapTab extends ConsumerStatefulWidget {
   const ItineraryMapTab({
     super.key,
     required this.itinerary,
@@ -24,25 +28,30 @@ class ItineraryMapTab extends StatefulWidget {
   final bool showTiles;
 
   @override
-  State<ItineraryMapTab> createState() => _ItineraryMapTabState();
+  ConsumerState<ItineraryMapTab> createState() => _ItineraryMapTabState();
 }
 
-class _ItineraryMapTabState extends State<ItineraryMapTab> {
+class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
   static const int _pinStaggerStepMs = 100;
   static const int _pinMaxStaggerDelayMs = 1900;
   static const int _pinFadeInDurationMs = 260;
   static const int _routeRevealBufferMs = 120;
   static final Tween<double> _routeFadeTween = Tween<double>(begin: 0, end: 1);
+  static const int _snapshotDelayMs = 1500;
 
   final MapController _mapController = MapController();
+  final GlobalKey _mapBoundaryKey = GlobalKey();
   late List<_OrderedVenue> _orderedVenues;
   bool _hasFittedCamera = false;
   bool _showRoutes = false;
+  bool _hasCapturedSnapshot = false;
   Timer? _routeRevealTimer;
+  Timer? _snapshotTimer;
 
   @override
   void dispose() {
     _routeRevealTimer?.cancel();
+    _snapshotTimer?.cancel();
     if (_mapController is ChangeNotifier) {
       (_mapController as ChangeNotifier).dispose();
     }
@@ -88,7 +97,9 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
 
     return Stack(
       children: [
-        FlutterMap(
+        RepaintBoundary(
+          key: _mapBoundaryKey,
+          child: FlutterMap(
           mapController: _mapController,
           options: MapOptions(
             initialCenter: validPoints.isNotEmpty
@@ -144,6 +155,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
             ),
           ],
         ),
+        ),
         if (validPoints.isEmpty)
           IgnorePointer(
             child: Center(
@@ -182,12 +194,14 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
 
     if (points.isEmpty) {
       _hasFittedCamera = true;
+      _scheduleSnapshotCapture();
       return;
     }
 
     if (points.length == 1) {
       _mapController.move(points.first, 13);
       _hasFittedCamera = true;
+      _scheduleSnapshotCapture();
       return;
     }
 
@@ -199,6 +213,7 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
       ),
     );
     _hasFittedCamera = true;
+    _scheduleSnapshotCapture();
   }
 
   void _scheduleRouteReveal() {
@@ -234,6 +249,49 @@ class _ItineraryMapTabState extends State<ItineraryMapTab> {
         _showRoutes = true;
       });
     });
+  }
+
+  void _scheduleSnapshotCapture() {
+    if (_hasCapturedSnapshot) {
+      return;
+    }
+    _snapshotTimer?.cancel();
+    _snapshotTimer = Timer(
+      const Duration(milliseconds: _snapshotDelayMs),
+      _captureMapSnapshot,
+    );
+  }
+
+  Future<void> _captureMapSnapshot() async {
+    if (_hasCapturedSnapshot || !mounted) {
+      return;
+    }
+
+    try {
+      final boundary = _mapBoundaryKey.currentContext
+          ?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null || !boundary.hasSize) {
+        debugPrint('Map snapshot skipped: boundary=${boundary != null}, '
+            'hasSize=${boundary?.hasSize}');
+        return;
+      }
+
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      if (byteData == null || !mounted) {
+        return;
+      }
+
+      ref.read(mapSnapshotProvider.notifier).state =
+          byteData.buffer.asUint8List();
+      _hasCapturedSnapshot = true;
+    } catch (e, stackTrace) {
+      debugPrint('Map snapshot capture failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      // Snapshot capture is best-effort; silently fall back to schematic.
+    }
   }
 
   List<Polyline> _buildRoutePolylines() {
