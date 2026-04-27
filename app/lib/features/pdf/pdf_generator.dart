@@ -294,7 +294,8 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary, {Uint8List? mapSnapshot}) {
           child: pw.Image(
             pw.MemoryImage(mapSnapshot),
             width: 500,
-            fit: pw.BoxFit.fitWidth,
+            height: 350,
+            fit: pw.BoxFit.contain,
           ),
         ),
         pw.SizedBox(height: 6),
