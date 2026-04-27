@@ -194,12 +194,14 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
 
     if (points.isEmpty) {
       _hasFittedCamera = true;
+      _scheduleSnapshotCapture();
       return;
     }
 
     if (points.length == 1) {
       _mapController.move(points.first, 13);
       _hasFittedCamera = true;
+      _scheduleSnapshotCapture();
       return;
     }
 
@@ -269,6 +271,8 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
       final boundary = _mapBoundaryKey.currentContext
           ?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null || !boundary.hasSize) {
+        debugPrint('Map snapshot skipped: boundary=${boundary != null}, '
+            'hasSize=${boundary?.hasSize}');
         return;
       }
 
@@ -283,7 +287,9 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
       ref.read(mapSnapshotProvider.notifier).state =
           byteData.buffer.asUint8List();
       _hasCapturedSnapshot = true;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('Map snapshot capture failed: $e');
+      debugPrint('Stack trace: $stackTrace');
       // Snapshot capture is best-effort; silently fall back to schematic.
     }
   }

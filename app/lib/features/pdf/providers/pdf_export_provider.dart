@@ -1,8 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/storage/itinerary_cache.dart';
 import 'package:app/features/pdf/pdf_generator.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum PdfExportStatus { idle, generating, ready, error }
@@ -77,7 +76,9 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
         status: PdfExportStatus.ready,
         filePath: result.filePath,
       );
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('PDF Export failed: $e');
+      debugPrint('Stack trace: $stackTrace');
       state = const PdfExportState(
         status: PdfExportStatus.error,
         errorMessage: 'Export failed. Please try again.',

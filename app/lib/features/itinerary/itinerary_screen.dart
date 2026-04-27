@@ -114,37 +114,11 @@ class ItineraryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  OutlinedButton(
+                  FilledButton(
                     onPressed: () {
                       _popOrGoHome(context);
                     },
-                    child: const Text('Back'),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FilledButton(
-                    onPressed: isGenerating
-                        ? null
-                        : () {
-                            ref
-                                .read(pdfExportControllerProvider.notifier)
-                                .export();
-                          },
-                    child: isGenerating
-                        ? const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                              SizedBox(width: AppSpacing.sm),
-                              Text('Exporting...'),
-                            ],
-                          )
-                        : const Text('Export PDF'),
+                    child: const Text('Go Back'),
                   ),
                 ],
               ),
@@ -334,7 +308,9 @@ Future<void> _handlePdfShareAndSuccess(
 }) async {
   try {
     await ref.read(pdfShareServiceProvider).sharePdf(filePath);
-  } catch (_) {
+  } catch (e, stackTrace) {
+    debugPrint('PDF Share failed: $e');
+    debugPrint('Stack trace: $stackTrace');
     if (!context.mounted) {
       return;
     }

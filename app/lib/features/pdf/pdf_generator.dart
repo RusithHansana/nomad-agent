@@ -46,6 +46,7 @@ Future<PdfExportResult> generateItineraryPdf(
 
   document.addPage(
     pw.MultiPage(
+      maxPages: 100,
       pageTheme: pw.PageTheme(
         margin: const pw.EdgeInsets.fromLTRB(30, 28, 30, 28),
       ),
