@@ -12,7 +12,7 @@ import '../pdf/share_service.dart';
 
 import '../../core/theme/app_typography.dart';
 import 'providers/itinerary_store_provider.dart';
-import 'providers/map_snapshot_provider.dart';
+
 import 'widgets/cost_summary_section.dart';
 import 'widgets/day_header.dart';
 import 'widgets/itinerary_map_tab.dart';
@@ -61,10 +61,7 @@ class ItineraryScreen extends ConsumerWidget {
           onRetry: () {
             ref
                 .read(pdfExportControllerProvider.notifier)
-                .export(
-                  itinerary: itinerary,
-                  mapSnapshot: ref.read(mapSnapshotProvider),
-                );
+                .export(itinerary: itinerary);
           },
         );
       }
@@ -72,8 +69,6 @@ class ItineraryScreen extends ConsumerWidget {
 
     final exportState = ref.watch(pdfExportControllerProvider);
     final isGenerating = exportState.status == PdfExportStatus.generating;
-    final mapSnapshot = ref.watch(mapSnapshotProvider);
-    final hasMapSnapshot = mapSnapshot != null;
     final canPop = _canPop(context);
 
     if (itinerary == null) {
@@ -171,31 +166,19 @@ class ItineraryScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!hasMapSnapshot && !isGenerating)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Text(
-                      'Switch to the Map tab to enable export',
-                      style: AppTypography.bodySmall(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
+
                 SizedBox(
                   width: double.infinity,
                   child: Semantics(
                     button: true,
                     label: 'Export itinerary as PDF',
                     child: FilledButton(
-                      onPressed: isGenerating || !hasMapSnapshot
+                      onPressed: isGenerating
                           ? null
                           : () {
                               ref
                                   .read(pdfExportControllerProvider.notifier)
-                                  .export(
-                                    itinerary: itinerary,
-                                    mapSnapshot: mapSnapshot,
-                                  );
+                                  .export(itinerary: itinerary);
                             },
                       child: isGenerating
                           ? const Row(
@@ -319,10 +302,7 @@ Future<void> _handlePdfShareAndSuccess(
       onRetry: () {
         ref
             .read(pdfExportControllerProvider.notifier)
-            .export(
-              itinerary: itinerary,
-              mapSnapshot: ref.read(mapSnapshotProvider),
-            );
+            .export(itinerary: itinerary);
       },
     );
     return;

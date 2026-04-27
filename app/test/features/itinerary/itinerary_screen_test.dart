@@ -1,11 +1,10 @@
-import 'dart:typed_data';
+
 
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
-import 'package:app/core/storage/itinerary_cache.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
-import 'package:app/features/itinerary/providers/map_snapshot_provider.dart';
+
 import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:app/features/pdf/providers/pdf_export_provider.dart';
 import 'package:app/features/pdf/share_service.dart';
@@ -286,7 +285,6 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
-        Uint8List? mapSnapshot,
       }) async {
         await Future<void>.delayed(const Duration(milliseconds: 120));
         return const PdfExportResult(
@@ -305,9 +303,6 @@ void main() {
               }),
             ),
             pdfGeneratorProvider.overrideWithValue(fakeExport),
-            mapSnapshotProvider.overrideWith(
-              (ref) => Uint8List.fromList([0]),
-            ),
           ],
         ),
       );
@@ -334,7 +329,6 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
-        Uint8List? mapSnapshot,
       }) async {
         return const PdfExportResult(
           filePath: '/tmp/shared_itinerary.pdf',
@@ -353,9 +347,6 @@ void main() {
             ),
             pdfGeneratorProvider.overrideWithValue(fakeExport),
             pdfShareServiceProvider.overrideWithValue(shareService),
-            mapSnapshotProvider.overrideWith(
-              (ref) => Uint8List.fromList([0]),
-            ),
           ],
         ),
       );
@@ -372,53 +363,6 @@ void main() {
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
     });
 
-    testWidgets('exports from cached itinerary when store entry is missing', (
-      tester,
-    ) async {
-      final cachedItinerary = _sampleItinerary();
-      final cache = _FakeItineraryCache(latest: cachedItinerary);
-      final shareService = _FakePdfShareService();
-      Itinerary? exportedItinerary;
-
-      Future<PdfExportResult> fakeExport(
-        Itinerary input, {
-        DocumentsDirectoryLoader? loadDocumentsDirectory,
-        Uint8List? mapSnapshot,
-      }) async {
-        exportedItinerary = input;
-        return const PdfExportResult(
-          filePath: '/tmp/cached_itinerary.pdf',
-          fileName: 'cached_itinerary.pdf',
-        );
-      }
-
-      await tester.pumpWidget(
-        _buildHarness(
-          id: 'missing-itinerary-id',
-          overrides: [
-            itineraryStoreProvider.overrideWith(
-              () => _FakeItineraryStoreNotifier(const <String, Itinerary>{}),
-            ),
-            itineraryCacheProvider.overrideWithValue(cache),
-            pdfGeneratorProvider.overrideWithValue(fakeExport),
-            pdfShareServiceProvider.overrideWithValue(shareService),
-          ],
-        ),
-      );
-
-      await tester.pumpAndSettle();
-      expect(find.text('Itinerary not found.'), findsOneWidget);
-
-      await tester.tap(find.text('Export PDF'));
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      expect(exportedItinerary?.generatedAt, cachedItinerary.generatedAt);
-      expect(shareService.sharedFilePaths, <String>[
-        '/tmp/cached_itinerary.pdf',
-      ]);
-    });
-
     testWidgets('shows error snackbar with retry action when export fails', (
       tester,
     ) async {
@@ -428,7 +372,6 @@ void main() {
       Future<PdfExportResult> fakeExport(
         Itinerary input, {
         DocumentsDirectoryLoader? loadDocumentsDirectory,
-        Uint8List? mapSnapshot,
       }) async {
         exportAttempts += 1;
         throw Exception('export failed');
@@ -444,9 +387,6 @@ void main() {
               }),
             ),
             pdfGeneratorProvider.overrideWithValue(fakeExport),
-            mapSnapshotProvider.overrideWith(
-              (ref) => Uint8List.fromList([0]),
-            ),
           ],
         ),
       );
@@ -502,21 +442,8 @@ class _FakePdfShareService implements PdfShareService {
   }
 }
 
-class _FakeItineraryCache implements ItineraryCache {
-  _FakeItineraryCache({this.latest});
 
-  Itinerary? latest;
 
-  @override
-  Future<Itinerary?> loadLatest() async {
-    return latest;
-  }
-
-  @override
-  Future<void> save(Itinerary itinerary) async {
-    latest = itinerary;
-  }
-}
 
 Itinerary _sampleItinerary() {
   return Itinerary(
