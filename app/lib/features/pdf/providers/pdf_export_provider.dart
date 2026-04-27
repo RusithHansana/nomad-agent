@@ -36,7 +36,6 @@ typedef GenerateItineraryPdf =
     Future<PdfExportResult> Function(
       Itinerary itinerary, {
       DocumentsDirectoryLoader? loadDocumentsDirectory,
-      Uint8List? mapSnapshot,
     });
 
 final pdfGeneratorProvider = Provider<GenerateItineraryPdf>((ref) {
@@ -54,7 +53,7 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
     return const PdfExportState.idle();
   }
 
-  Future<void> export({Itinerary? itinerary, Uint8List? mapSnapshot}) async {
+  Future<void> export({Itinerary? itinerary}) async {
     if (state.status == PdfExportStatus.generating) {
       return;
     }
@@ -70,7 +69,6 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
 
       final result = await ref.read(pdfGeneratorProvider)(
         itineraryToExport,
-        mapSnapshot: mapSnapshot,
       );
       state = PdfExportState(
         status: PdfExportStatus.ready,

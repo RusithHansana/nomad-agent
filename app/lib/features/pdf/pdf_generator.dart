@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
@@ -23,7 +22,6 @@ class PdfExportResult {
 Future<PdfExportResult> generateItineraryPdf(
   Itinerary itinerary, {
   DocumentsDirectoryLoader? loadDocumentsDirectory,
-  Uint8List? mapSnapshot,
 }) async {
   final baseFont = pw.Font.ttf(
     await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'),
@@ -55,8 +53,6 @@ Future<PdfExportResult> generateItineraryPdf(
           _buildHeader(itinerary: itinerary, generatedAt: generatedAt),
           pw.SizedBox(height: 20),
           ...itinerary.days.map(_buildDaySection),
-          pw.SizedBox(height: 18),
-          pw.Container(child: _buildMapSnapshot(itinerary, mapSnapshot: mapSnapshot)),
           pw.SizedBox(height: 18),
           pw.Container(child: _buildCostSummary(itinerary)),
         ];
@@ -254,171 +250,6 @@ pw.TableRow _buildVenueRow(Venue venue) {
   );
 }
 
-pw.Widget _buildMapSnapshot(Itinerary itinerary, {Uint8List? mapSnapshot}) {
-  final venues = itinerary.days
-      .expand((day) => day.venues)
-      .where(_hasValidCoordinates)
-      .toList(growable: false);
-
-  if (venues.isEmpty) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(14),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: _pdfColorFrom(AppColors.secondaryVariant)),
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      child: pw.Text(
-        'Map unavailable for this itinerary yet.',
-        style: const pw.TextStyle(fontSize: 11),
-      ),
-    );
-  }
-
-  // If we have a captured map snapshot, use it as the map image
-  if (mapSnapshot != null) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Static Map Snapshot',
-          style: pw.TextStyle(
-            fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
-            color: _pdfColorFrom(AppColors.textPrimary),
-          ),
-        ),
-        pw.SizedBox(height: 6),
-        pw.ClipRRect(
-          horizontalRadius: 8,
-          verticalRadius: 8,
-          child: pw.Image(
-            pw.MemoryImage(mapSnapshot),
-            width: 500,
-            height: 350,
-            fit: pw.BoxFit.contain,
-          ),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Wrap(
-          spacing: 12,
-          runSpacing: 4,
-          children: [
-            _legendChip('Verified', _pdfColorFrom(AppColors.success)),
-            _legendChip('Unverified', _pdfColorFrom(AppColors.warning)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  const mapWidth = 500.0;
-  const mapHeight = 180.0;
-  final lats = venues.map((venue) => venue.latitude).toList(growable: false);
-  final lngs = venues.map((venue) => venue.longitude).toList(growable: false);
-
-  var minLat = lats.reduce((a, b) => a < b ? a : b);
-  var maxLat = lats.reduce((a, b) => a > b ? a : b);
-  var minLng = lngs.reduce((a, b) => a < b ? a : b);
-  var maxLng = lngs.reduce((a, b) => a > b ? a : b);
-
-  if ((maxLat - minLat).abs() < 0.000001) {
-    minLat -= 0.01;
-    maxLat += 0.01;
-  }
-  if ((maxLng - minLng).abs() < 0.000001) {
-    minLng -= 0.01;
-    maxLng += 0.01;
-  }
-
-  const innerPadding = 14.0;
-  final markers = <pw.Widget>[];
-
-  for (var index = 0; index < venues.length; index++) {
-    final venue = venues[index];
-    final xRatio = (venue.longitude - minLng) / (maxLng - minLng);
-    final yRatio = (venue.latitude - minLat) / (maxLat - minLat);
-
-    final x = innerPadding + (xRatio * (mapWidth - innerPadding * 2));
-    final y = innerPadding + ((1 - yRatio) * (mapHeight - innerPadding * 2));
-
-    markers.add(
-      pw.Positioned(
-        left: x - 8,
-        top: y - 8,
-        child: pw.Container(
-          width: 16,
-          height: 16,
-          decoration: pw.BoxDecoration(
-            shape: pw.BoxShape.circle,
-            color: venue.isVerified
-                ? _pdfColorFrom(AppColors.success)
-                : _pdfColorFrom(AppColors.warning),
-          ),
-          alignment: pw.Alignment.center,
-          child: pw.Text(
-            '${index + 1}',
-            style: pw.TextStyle(
-              color: _pdfColorFrom(AppColors.onSecondary),
-              fontSize: 8,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(
-        'Static Map Snapshot',
-        style: pw.TextStyle(
-          fontSize: 14,
-          fontWeight: pw.FontWeight.bold,
-          color: _pdfColorFrom(AppColors.textPrimary),
-        ),
-      ),
-      pw.SizedBox(height: 6),
-      pw.Container(
-        width: mapWidth,
-        height: mapHeight,
-        decoration: pw.BoxDecoration(
-          color: _pdfColorFrom(AppColors.surfaceLight),
-          border: pw.Border.all(
-            color: _pdfColorFrom(AppColors.secondaryVariant),
-          ),
-          borderRadius: pw.BorderRadius.circular(8),
-        ),
-        child: pw.Stack(children: markers),
-      ),
-      pw.SizedBox(height: 6),
-      pw.Wrap(
-        spacing: 12,
-        runSpacing: 4,
-        children: [
-          _legendChip('Verified', _pdfColorFrom(AppColors.success)),
-          _legendChip('Unverified', _pdfColorFrom(AppColors.warning)),
-        ],
-      ),
-    ],
-  );
-}
-
-pw.Widget _legendChip(String label, PdfColor color) {
-  return pw.Row(
-    mainAxisSize: pw.MainAxisSize.min,
-    children: [
-      pw.Container(
-        width: 8,
-        height: 8,
-        decoration: pw.BoxDecoration(color: color, shape: pw.BoxShape.circle),
-      ),
-      pw.SizedBox(width: 4),
-      pw.Text(label, style: const pw.TextStyle(fontSize: 10)),
-    ],
-  );
-}
 
 pw.Widget _buildCostSummary(Itinerary itinerary) {
   final textColor = _pdfColorFrom(AppColors.textPrimary);
@@ -516,17 +347,6 @@ DateTime? _tryParseDate(String? value) {
   return DateTime.tryParse(value);
 }
 
-bool _hasValidCoordinates(Venue venue) {
-  final lat = venue.latitude;
-  final lng = venue.longitude;
-  if (!lat.isFinite || !lng.isFinite) {
-    return false;
-  }
-  if (lat == 0 && lng == 0) {
-    return false;
-  }
-  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-}
 
 String _formatCost(double? value) {
   if (value == null) {
