@@ -46,6 +46,7 @@ Future<PdfExportResult> generateItineraryPdf(
 
   document.addPage(
     pw.MultiPage(
+      maxPages: 100,
       pageTheme: pw.PageTheme(
         margin: const pw.EdgeInsets.fromLTRB(30, 28, 30, 28),
       ),
@@ -293,7 +294,8 @@ pw.Widget _buildMapSnapshot(Itinerary itinerary, {Uint8List? mapSnapshot}) {
           child: pw.Image(
             pw.MemoryImage(mapSnapshot),
             width: 500,
-            fit: pw.BoxFit.fitWidth,
+            height: 350,
+            fit: pw.BoxFit.contain,
           ),
         ),
         pw.SizedBox(height: 6),
