@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:app/core/models/itinerary.dart';
+import 'package:app/core/models/cached_itinerary_summary.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,12 +10,20 @@ import 'package:path_provider/path_provider.dart';
 abstract class ItineraryCache {
   Future<void> save(Itinerary itinerary);
   Future<Itinerary?> loadLatest();
+  Future<List<CachedItinerarySummary>> listItineraries();
+  Future<Itinerary?> loadItinerary(String id);
+  Future<void> deleteItinerary(String id);
 }
 
 typedef ItineraryCacheDirectoryLoader = Future<Directory> Function();
 
 final itineraryCacheProvider = Provider<ItineraryCache>((ref) {
   return FileItineraryCache();
+});
+
+final cachedItinerariesProvider = FutureProvider<List<CachedItinerarySummary>>((ref) {
+  final cache = ref.watch(itineraryCacheProvider);
+  return cache.listItineraries();
 });
 
 class FileItineraryCache implements ItineraryCache {
@@ -28,24 +37,131 @@ class FileItineraryCache implements ItineraryCache {
   final ItineraryCacheDirectoryLoader _loadDocumentsDirectory;
   final String _fileName;
 
+  String _sanitize(String input) {
+    return input.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_').toLowerCase();
+  }
+
+  Future<Directory?> _getItinerariesDir() async {
+    try {
+      final docDir = await _loadDocumentsDirectory();
+      final dir = Directory('${docDir.path}/itineraries');
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return dir;
+    } on Exception {
+      return null;
+    }
+  }
+
   @override
   Future<void> save(Itinerary itinerary) async {
-    final file = await _tryResolveFile();
-    if (file == null) {
-      return;
-    }
+    final dir = await _getItinerariesDir();
+    if (dir == null) return;
+
+    final timestamp = itinerary.generatedAt.isNotEmpty
+        ? itinerary.generatedAt.replaceAll(RegExp(r'[:\-]'), '').replaceAll('T', '_').replaceAll('Z', '')
+        : DateTime.now().toUtc().toIso8601String().replaceAll(RegExp(r'[:\-]'), '').replaceAll('T', '_').replaceAll('Z', '');
+        
+    final sanitizedDest = _sanitize(itinerary.destination);
+    final file = File('${dir.path}/${timestamp}_$sanitizedDest.json');
 
     final payload = jsonEncode(itinerary.toJson());
     try {
       await file.writeAsString(payload, flush: true);
+      
+      // Keep legacy file updated
+      final fallback = await _tryResolveFile();
+      if (fallback != null) {
+        await fallback.writeAsString(payload, flush: true);
+      }
     } on FileSystemException {
-      // Export must remain non-fatal even if local storage is unavailable.
       return;
     }
   }
 
   @override
+  Future<List<CachedItinerarySummary>> listItineraries() async {
+    final dir = await _getItinerariesDir();
+    if (dir == null) return [];
+
+    try {
+      final files = await dir.list().where((e) => e is File && e.path.endsWith('.json')).toList();
+      final items = <CachedItinerarySummary>[];
+      
+      for (final f in files) {
+        final file = f as File;
+        try {
+          final content = await file.readAsString();
+          final decoded = jsonDecode(content) as Map<String, dynamic>;
+          final parsed = Itinerary.fromJson(decoded.cast<String, Object?>());
+          
+          int venueCount = 0;
+          for (final d in parsed.days) {
+            venueCount += d.venues.length;
+          }
+          
+          items.add(CachedItinerarySummary(
+            id: file.uri.pathSegments.last,
+            destination: parsed.destination,
+            durationDays: parsed.durationDays,
+            generatedAt: parsed.generatedAt,
+            venueCount: venueCount,
+          ));
+        } catch (_) {
+          // Ignore corrupt files
+        }
+      }
+      
+      items.sort((a, b) => b.generatedAt.compareTo(a.generatedAt));
+      return items;
+    } on Exception {
+      return [];
+    }
+  }
+
+  @override
+  Future<Itinerary?> loadItinerary(String id) async {
+    final dir = await _getItinerariesDir();
+    if (dir == null) return null;
+    
+    final file = File('${dir.path}/$id');
+    if (!await file.exists()) return null;
+    
+    try {
+      final content = await file.readAsString();
+      final decoded = jsonDecode(content) as Map<String, dynamic>;
+      return Itinerary.fromJson(decoded.cast<String, Object?>());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> deleteItinerary(String id) async {
+    final dir = await _getItinerariesDir();
+    if (dir == null) return;
+    
+    final file = File('${dir.path}/$id');
+    if (await file.exists()) {
+      try {
+        await file.delete();
+      } catch (_) {
+        // Ignore delete errors
+      }
+    }
+  }
+
+  @override
   Future<Itinerary?> loadLatest() async {
+    // Try to get newest from itineraries folder first
+    final list = await listItineraries();
+    if (list.isNotEmpty) {
+      final loaded = await loadItinerary(list.first.id);
+      if (loaded != null) return loaded;
+    }
+
+    // Fallback to old legacy file
     final file = await _tryResolveFile();
     if (file == null) {
       return null;
