@@ -1,5 +1,3 @@
-
-
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
@@ -441,9 +439,6 @@ class _FakePdfShareService implements PdfShareService {
     sharedFilePaths.add(filePath);
   }
 }
-
-
-
 
 Itinerary _sampleItinerary() {
   return Itinerary(

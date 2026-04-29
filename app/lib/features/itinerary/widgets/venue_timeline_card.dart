@@ -81,9 +81,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                   children: [
                     Text(
                       _timeLabel(widget.venue, widget.index),
-                      style: AppTypography.caption(
-                        color: textSecondary,
-                      ),
+                      style: AppTypography.caption(color: textSecondary),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Row(
@@ -125,9 +123,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                             children: [
                               Text(
                                 widget.venue.name,
-                                style: AppTypography.h3(
-                                  color: textPrimary,
-                                ),
+                                style: AppTypography.h3(color: textPrimary),
                               ),
                               VerificationBadge(
                                 type: VerificationBadgeType.verified,
@@ -138,9 +134,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                         else ...[
                           Text(
                             widget.venue.name,
-                            style: AppTypography.h3(
-                              color: textPrimary,
-                            ),
+                            style: AppTypography.h3(color: textPrimary),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           VerificationBadge(
@@ -151,9 +145,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           widget.venue.address,
-                          style: AppTypography.bodySmall(
-                            color: textSecondary,
-                          ),
+                          style: AppTypography.bodySmall(color: textSecondary),
                         ),
                         if (badgeType != VerificationBadgeType.verified &&
                             hasVerificationNote)
@@ -220,9 +212,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                           onTap: () => widget.onViewSource(widget.venue),
                           child: Text(
                             'View source →',
-                            style: AppTypography.bodySmall(
-                              color: primaryColor,
-                            ),
+                            style: AppTypography.bodySmall(color: primaryColor),
                           ),
                         ),
                       ],

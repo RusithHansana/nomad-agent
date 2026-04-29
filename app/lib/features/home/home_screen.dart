@@ -95,9 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onSubmitted: (_) => _handleSubmit(),
               ),
               const SizedBox(height: AppSpacing.md),
-              SuggestionChips(
-                onSuggestionSelected: _handleSuggestionTap,
-              ),
+              SuggestionChips(onSuggestionSelected: _handleSuggestionTap),
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton(
                 onPressed: _canSubmit ? _handleSubmit : null,

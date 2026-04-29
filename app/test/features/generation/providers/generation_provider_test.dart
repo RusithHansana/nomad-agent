@@ -62,7 +62,7 @@ class _InMemoryItineraryCache implements ItineraryCache {
   }
 
   @override
-  Future<void> deleteItinerary(String id) async {}
+  Future<bool> deleteItinerary(String id) async => false;
 
   @override
   Future<List<CachedItinerarySummary>> listItineraries() async => [];

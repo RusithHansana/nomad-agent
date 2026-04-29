@@ -16,45 +16,35 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
   group('App bootstrap', () {
-    testWidgets('App renders inside ProviderScope without crashing',
-        (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: App()),
-      );
+    testWidgets('App renders inside ProviderScope without crashing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const ProviderScope(child: App()));
 
       // The Home screen should be visible as the initial route
       expect(find.text('Home'), findsWidgets);
     });
 
     testWidgets('App uses Material 3', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: App()),
-      );
+      await tester.pumpWidget(const ProviderScope(child: App()));
 
-      final materialApp = tester.widget<MaterialApp>(
-        find.byType(MaterialApp),
-      );
+      final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
       expect(materialApp.theme?.useMaterial3, isTrue);
       expect(materialApp.darkTheme?.useMaterial3, isTrue);
       expect(materialApp.themeMode, ThemeMode.system);
     });
 
     testWidgets('Bottom NavigationBar has 3 destinations', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: App()),
-      );
+      await tester.pumpWidget(const ProviderScope(child: App()));
 
-      final navBar = tester.widget<NavigationBar>(
-        find.byType(NavigationBar),
-      );
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(navBar.destinations.length, 3);
     });
 
-    testWidgets('Tapping History tab navigates to History screen',
-        (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: App()),
-      );
+    testWidgets('Tapping History tab navigates to History screen', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const ProviderScope(child: App()));
 
       // Tap the History tab (index 1)
       await tester.tap(find.text('History'));
@@ -63,11 +53,10 @@ void main() {
       expect(find.text('History Screen'), findsOneWidget);
     });
 
-    testWidgets('Tapping Settings tab navigates to Settings screen',
-        (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: App()),
-      );
+    testWidgets('Tapping Settings tab navigates to Settings screen', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const ProviderScope(child: App()));
 
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();

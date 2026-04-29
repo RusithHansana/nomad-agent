@@ -117,7 +117,7 @@ class HistoryScreen extends ConsumerWidget {
         child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
       confirmDismiss: (direction) async {
-        return await showDialog<bool>(
+        final result = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: Text('Delete itinerary?'),
@@ -136,14 +136,16 @@ class HistoryScreen extends ConsumerWidget {
             ],
           ),
         );
+        return result ?? false;
       },
       onDismissed: (direction) async {
-        await ref.read(itineraryCacheProvider).deleteItinerary(summary.id);
+        if (!context.mounted) return;
+        final success = await ref.read(itineraryCacheProvider).deleteItinerary(summary.id);
         ref.invalidate(cachedItinerariesProvider);
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Itinerary deleted.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(success ? 'Itinerary deleted.' : 'Failed to delete itinerary.'),
+          ));
         }
       },
       child: ListTile(

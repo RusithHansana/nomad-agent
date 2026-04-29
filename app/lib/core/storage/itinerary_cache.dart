@@ -12,7 +12,7 @@ abstract class ItineraryCache {
   Future<Itinerary?> loadLatest();
   Future<List<CachedItinerarySummary>> listItineraries();
   Future<Itinerary?> loadItinerary(String id);
-  Future<void> deleteItinerary(String id);
+  Future<bool> deleteItinerary(String id);
 }
 
 typedef ItineraryCacheDirectoryLoader = Future<Directory> Function();
@@ -59,9 +59,17 @@ class FileItineraryCache implements ItineraryCache {
     final dir = await _getItinerariesDir();
     if (dir == null) return;
 
-    final timestamp = itinerary.generatedAt.isNotEmpty
-        ? itinerary.generatedAt.replaceAll(RegExp(r'[:\-]'), '').replaceAll('T', '_').replaceAll('Z', '')
-        : DateTime.now().toUtc().toIso8601String().replaceAll(RegExp(r'[:\-]'), '').replaceAll('T', '_').replaceAll('Z', '');
+    final now = DateTime.now().toUtc();
+    final baseTime = itinerary.generatedAt.isNotEmpty
+        ? itinerary.generatedAt
+        : now.toIso8601String().split('.').first;
+
+    final timestamp =
+        baseTime
+            .replaceAll(RegExp(r'[:\-]'), '')
+            .replaceAll('T', '_')
+            .replaceAll('Z', '') +
+        '_${now.microsecondsSinceEpoch % 10000}';
         
     final sanitizedDest = _sanitize(itinerary.destination);
     final file = File('${dir.path}/${timestamp}_$sanitizedDest.json');
@@ -122,6 +130,7 @@ class FileItineraryCache implements ItineraryCache {
 
   @override
   Future<Itinerary?> loadItinerary(String id) async {
+    if (id.contains('/') || id.contains(r'\') || id.contains('..')) return null;
     final dir = await _getItinerariesDir();
     if (dir == null) return null;
     
@@ -138,19 +147,21 @@ class FileItineraryCache implements ItineraryCache {
   }
 
   @override
-  Future<void> deleteItinerary(String id) async {
+  Future<bool> deleteItinerary(String id) async {
+    if (id.contains('/') || id.contains(r'\') || id.contains('..')) return false;
     final dir = await _getItinerariesDir();
-    if (dir == null) return;
-    
+    if (dir == null) return false;
+
     final file = File('${dir.path}/$id');
     if (await file.exists()) {
       try {
         await file.delete();
+        return true;
       } catch (_) {
-        // Ignore delete errors
+        return false;
       }
     }
-  }
+    return false;
 
   @override
   Future<Itinerary?> loadLatest() async {

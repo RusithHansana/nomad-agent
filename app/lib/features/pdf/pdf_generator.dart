@@ -250,7 +250,6 @@ pw.TableRow _buildVenueRow(Venue venue) {
   );
 }
 
-
 pw.Widget _buildCostSummary(Itinerary itinerary) {
   final textColor = _pdfColorFrom(AppColors.textPrimary);
   final categories = <String, double?>{
@@ -346,7 +345,6 @@ DateTime? _tryParseDate(String? value) {
   }
   return DateTime.tryParse(value);
 }
-
 
 String _formatCost(double? value) {
   if (value == null) {

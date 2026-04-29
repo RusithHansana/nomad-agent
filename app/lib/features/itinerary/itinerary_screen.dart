@@ -166,7 +166,6 @@ class ItineraryScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-
                 SizedBox(
                   width: double.infinity,
                   child: Semantics(

@@ -12,61 +12,61 @@ class AppTypography {
 
   /// Display — 28/700
   static TextStyle display({Color? color}) => GoogleFonts.inter(
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        color: color,
-      );
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    color: color,
+  );
 
   /// H1 — 24/600
   static TextStyle h1({Color? color}) => GoogleFonts.inter(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
-        color: color,
-      );
+    fontSize: 24,
+    fontWeight: FontWeight.w600,
+    color: color,
+  );
 
   /// H2 — 20/600
   static TextStyle h2({Color? color}) => GoogleFonts.inter(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: color,
-      );
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    color: color,
+  );
 
   /// H3 — 17/500
   static TextStyle h3({Color? color}) => GoogleFonts.inter(
-        fontSize: 17,
-        fontWeight: FontWeight.w500,
-        color: color,
-      );
+    fontSize: 17,
+    fontWeight: FontWeight.w500,
+    color: color,
+  );
 
   /// Body — 15/400
   static TextStyle body({Color? color}) => GoogleFonts.inter(
-        fontSize: 15,
-        fontWeight: FontWeight.w400,
-        color: color,
-      );
+    fontSize: 15,
+    fontWeight: FontWeight.w400,
+    color: color,
+  );
 
   /// Body Small — 13/400
   static TextStyle bodySmall({Color? color}) => GoogleFonts.inter(
-        fontSize: 13,
-        fontWeight: FontWeight.w400,
-        color: color,
-      );
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    color: color,
+  );
 
   /// Caption — 11/500
   static TextStyle caption({Color? color}) => GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        color: color,
-      );
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    color: color,
+  );
 
   // ── Monospace (Thought Log) ────────────────────────────────────────
 
   /// ThoughtLog — 14/400 JetBrains Mono
   static TextStyle thoughtLog({Color? color}) => GoogleFonts.jetBrainsMono(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        color: color,
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: color,
+  );
 
   // ── TextTheme builder (used by AppTheme) ───────────────────────────
 
