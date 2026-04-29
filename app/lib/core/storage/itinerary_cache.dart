@@ -110,7 +110,7 @@ class FileItineraryCache implements ItineraryCache {
           }
           
           items.add(CachedItinerarySummary(
-            id: file.uri.pathSegments.last,
+            id: file.path.split(RegExp(r'[/\\]')).last,
             destination: parsed.destination,
             durationDays: parsed.durationDays,
             generatedAt: parsed.generatedAt,
@@ -121,7 +121,13 @@ class FileItineraryCache implements ItineraryCache {
         }
       }
       
-      items.sort((a, b) => b.generatedAt.compareTo(a.generatedAt));
+      items.sort((a, b) {
+        final dateA = DateTime.tryParse(a.generatedAt) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB = DateTime.tryParse(b.generatedAt) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        return dateB.compareTo(dateA);
+      });
       return items;
     } on Exception {
       return [];
@@ -162,6 +168,7 @@ class FileItineraryCache implements ItineraryCache {
       }
     }
     return false;
+  }
 
   @override
   Future<Itinerary?> loadLatest() async {

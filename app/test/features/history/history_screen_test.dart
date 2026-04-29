@@ -10,16 +10,22 @@ import 'package:app/core/models/itinerary.dart';
 class _FakeItineraryCache implements ItineraryCache {
   bool deleteCalled = false;
   String? deletedId;
+  List<CachedItinerarySummary> items = [];
+
+  _FakeItineraryCache([List<CachedItinerarySummary>? initialItems]) {
+    items = initialItems ?? [];
+  }
 
   @override
   Future<bool> deleteItinerary(String id) async {
     deleteCalled = true;
     deletedId = id;
+    items.removeWhere((item) => item.id == id);
     return true;
   }
 
   @override
-  Future<List<CachedItinerarySummary>> listItineraries() async => [];
+  Future<List<CachedItinerarySummary>> listItineraries() async => items;
   @override
   Future<Itinerary?> loadItinerary(String id) async => null;
   @override
