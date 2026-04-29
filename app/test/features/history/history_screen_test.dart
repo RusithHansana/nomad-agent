@@ -41,9 +41,10 @@ void main() {
   ]) {
     return ProviderScope(
       overrides: [
-        cachedItinerariesProvider.overrideWith(
-          (ref) => Future.value(cacheResult),
-        ),
+        cachedItinerariesProvider.overrideWith((ref) async {
+          if (cache != null) return await cache.listItineraries();
+          return cacheResult;
+        }),
         if (cache != null) itineraryCacheProvider.overrideWithValue(cache),
       ],
       child: const MaterialApp(home: HistoryScreen()),
@@ -103,7 +104,7 @@ void main() {
         venueCount: 12,
       ),
     ];
-    final fakeCache = _FakeItineraryCache();
+    final fakeCache = _FakeItineraryCache(summaries);
 
     await tester.pumpWidget(createWidgetUnderTest(summaries, fakeCache));
     await tester.pumpAndSettle();
