@@ -21,7 +21,9 @@ final itineraryCacheProvider = Provider<ItineraryCache>((ref) {
   return FileItineraryCache();
 });
 
-final cachedItinerariesProvider = FutureProvider<List<CachedItinerarySummary>>((ref) {
+final cachedItinerariesProvider = FutureProvider<List<CachedItinerarySummary>>((
+  ref,
+) {
   final cache = ref.watch(itineraryCacheProvider);
   return cache.listItineraries();
 });
@@ -70,14 +72,14 @@ class FileItineraryCache implements ItineraryCache {
             .replaceAll('T', '_')
             .replaceAll('Z', '') +
         '_${now.microsecondsSinceEpoch % 10000}';
-        
+
     final sanitizedDest = _sanitize(itinerary.destination);
     final file = File('${dir.path}/${timestamp}_$sanitizedDest.json');
 
     final payload = jsonEncode(itinerary.toJson());
     try {
       await file.writeAsString(payload, flush: true);
-      
+
       // Keep legacy file updated
       final fallback = await _tryResolveFile();
       if (fallback != null) {
@@ -94,37 +96,44 @@ class FileItineraryCache implements ItineraryCache {
     if (dir == null) return [];
 
     try {
-      final files = await dir.list().where((e) => e is File && e.path.endsWith('.json')).toList();
+      final files = await dir
+          .list()
+          .where((e) => e is File && e.path.endsWith('.json'))
+          .toList();
       final items = <CachedItinerarySummary>[];
-      
+
       for (final f in files) {
         final file = f as File;
         try {
           final content = await file.readAsString();
           final decoded = jsonDecode(content) as Map<String, dynamic>;
           final parsed = Itinerary.fromJson(decoded.cast<String, Object?>());
-          
+
           int venueCount = 0;
           for (final d in parsed.days) {
             venueCount += d.venues.length;
           }
-          
-          items.add(CachedItinerarySummary(
-            id: file.path.split(RegExp(r'[/\\]')).last,
-            destination: parsed.destination,
-            durationDays: parsed.durationDays,
-            generatedAt: parsed.generatedAt,
-            venueCount: venueCount,
-          ));
+
+          items.add(
+            CachedItinerarySummary(
+              id: file.path.split(RegExp(r'[/\\]')).last,
+              destination: parsed.destination,
+              durationDays: parsed.durationDays,
+              generatedAt: parsed.generatedAt,
+              venueCount: venueCount,
+            ),
+          );
         } catch (_) {
           // Ignore corrupt files
         }
       }
-      
+
       items.sort((a, b) {
-        final dateA = DateTime.tryParse(a.generatedAt) ??
+        final dateA =
+            DateTime.tryParse(a.generatedAt) ??
             DateTime.fromMillisecondsSinceEpoch(0);
-        final dateB = DateTime.tryParse(b.generatedAt) ??
+        final dateB =
+            DateTime.tryParse(b.generatedAt) ??
             DateTime.fromMillisecondsSinceEpoch(0);
         return dateB.compareTo(dateA);
       });
@@ -139,10 +148,10 @@ class FileItineraryCache implements ItineraryCache {
     if (id.contains('/') || id.contains(r'\') || id.contains('..')) return null;
     final dir = await _getItinerariesDir();
     if (dir == null) return null;
-    
+
     final file = File('${dir.path}/$id');
     if (!await file.exists()) return null;
-    
+
     try {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
@@ -154,7 +163,8 @@ class FileItineraryCache implements ItineraryCache {
 
   @override
   Future<bool> deleteItinerary(String id) async {
-    if (id.contains('/') || id.contains(r'\') || id.contains('..')) return false;
+    if (id.contains('/') || id.contains(r'\') || id.contains('..'))
+      return false;
     final dir = await _getItinerariesDir();
     if (dir == null) return false;
 
