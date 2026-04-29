@@ -140,12 +140,18 @@ class HistoryScreen extends ConsumerWidget {
       },
       onDismissed: (direction) async {
         if (!context.mounted) return;
-        final success = await ref.read(itineraryCacheProvider).deleteItinerary(summary.id);
+        final success = await ref
+            .read(itineraryCacheProvider)
+            .deleteItinerary(summary.id);
         ref.invalidate(cachedItinerariesProvider);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(success ? 'Itinerary deleted.' : 'Failed to delete itinerary.'),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                success ? 'Itinerary deleted.' : 'Failed to delete itinerary.',
+              ),
+            ),
+          );
         }
       },
       child: ListTile(

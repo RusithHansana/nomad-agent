@@ -29,7 +29,10 @@ class _FakeItineraryCache implements ItineraryCache {
 }
 
 void main() {
-  Widget createWidgetUnderTest(List<CachedItinerarySummary> cacheResult, [ItineraryCache? cache]) {
+  Widget createWidgetUnderTest(
+    List<CachedItinerarySummary> cacheResult, [
+    ItineraryCache? cache,
+  ]) {
     return ProviderScope(
       overrides: [
         cachedItinerariesProvider.overrideWith(
@@ -82,7 +85,9 @@ void main() {
   );
 
   // Swipe to delete would require overriding itineraryCacheProvider since it deletes via ref.read
-  testWidgets('Swipe to delete shows confirmation and deletes on confirm', (tester) async {
+  testWidgets('Swipe to delete shows confirmation and deletes on confirm', (
+    tester,
+  ) async {
     final summaries = [
       CachedItinerarySummary(
         id: 'test_id.json',
@@ -105,11 +110,11 @@ void main() {
 
     // Dialog should appear
     expect(find.text('Delete itinerary?'), findsOneWidget);
-    
+
     // Tap cancel first to ensure it's not deleted
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-    
+
     expect(fakeCache.deleteCalled, isFalse);
     expect(find.text('Tokyo'), findsOneWidget); // Still there
 
@@ -120,7 +125,7 @@ void main() {
     // Tap Delete
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
-    
+
     expect(fakeCache.deleteCalled, isTrue);
     expect(fakeCache.deletedId, 'test_id.json');
   });
