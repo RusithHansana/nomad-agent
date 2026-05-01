@@ -67,9 +67,7 @@ class PdfExportController extends AutoDisposeNotifier<PdfExportState> {
         throw StateError('No itinerary available for offline export.');
       }
 
-      final result = await ref.read(pdfGeneratorProvider)(
-        itineraryToExport,
-      );
+      final result = await ref.read(pdfGeneratorProvider)(itineraryToExport);
       state = PdfExportState(
         status: PdfExportStatus.ready,
         filePath: result.filePath,

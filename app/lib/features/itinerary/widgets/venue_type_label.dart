@@ -2,11 +2,7 @@ import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 
 class VenueTypeLabel extends StatelessWidget {
-  const VenueTypeLabel({
-    super.key,
-    required this.type,
-    required this.color,
-  });
+  const VenueTypeLabel({super.key, required this.type, required this.color});
 
   final String type;
   final Color color;
@@ -41,10 +37,7 @@ class VenueTypeLabel extends StatelessWidget {
           Icon(icon, size: 14, color: color.withValues(alpha: 0.7)),
           const SizedBox(width: 4),
         ],
-        Text(
-          label,
-          style: AppTypography.bodySmall(color: color),
-        ),
+        Text(label, style: AppTypography.bodySmall(color: color)),
       ],
     );
   }

@@ -127,10 +127,7 @@ class VenueVerifiedEvent extends SSEEvent {
     };
   }
 
-  VenueVerifiedEvent copyWith({
-    String? timestamp,
-    Venue? venue,
-  }) {
+  VenueVerifiedEvent copyWith({String? timestamp, Venue? venue}) {
     return VenueVerifiedEvent(
       timestamp: timestamp ?? this.timestamp,
       venue: venue ?? this.venue,
@@ -198,10 +195,7 @@ class ItineraryCompleteEvent extends SSEEvent {
     };
   }
 
-  ItineraryCompleteEvent copyWith({
-    String? timestamp,
-    Itinerary? itinerary,
-  }) {
+  ItineraryCompleteEvent copyWith({String? timestamp, Itinerary? itinerary}) {
     return ItineraryCompleteEvent(
       timestamp: timestamp ?? this.timestamp,
       itinerary: itinerary ?? this.itinerary,

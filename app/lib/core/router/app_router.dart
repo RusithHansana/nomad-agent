@@ -39,21 +39,18 @@ final GoRouter appRouter = GoRouter(
       routes: [
         GoRoute(
           path: AppRoutes.home,
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: HomeScreen(),
-          ),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: HomeScreen()),
         ),
         GoRoute(
           path: AppRoutes.history,
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: HistoryScreen(),
-          ),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: HistoryScreen()),
         ),
         GoRoute(
           path: AppRoutes.settings,
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: SettingsScreen(),
-          ),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: SettingsScreen()),
         ),
       ],
     ),

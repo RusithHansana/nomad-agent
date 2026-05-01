@@ -33,6 +33,60 @@ void main() {
       expect(loaded?.destination, itinerary.destination);
     });
 
+    test('saving creates a file in itineraries/', () async {
+      final cache = FileItineraryCache(
+        loadDocumentsDirectory: () async => tempDirectory,
+      );
+      final itinerary = _sampleItinerary();
+
+      await cache.save(itinerary);
+
+      final cacheDir = Directory('${tempDirectory.path}/itineraries');
+      expect(cacheDir.existsSync(), isTrue);
+
+      final files = cacheDir.listSync().whereType<File>().toList();
+      expect(files.length, 1);
+      expect(files.first.path, endsWith('_kyoto.json'));
+    });
+
+    test('list cached itineraries returning newest first', () async {
+      final cache = FileItineraryCache(
+        loadDocumentsDirectory: () async => tempDirectory,
+      );
+
+      final older = _sampleItinerary().copyWith(
+        destination: 'Tokyo',
+        generatedAt: '2026-04-18T12:00:00Z',
+      );
+      final newer = _sampleItinerary().copyWith(
+        destination: 'Kyoto',
+        generatedAt: '2026-04-19T12:00:00Z',
+      );
+
+      await cache.save(older);
+      await cache.save(newer);
+
+      final listed = await cache.listItineraries();
+      expect(listed.length, 2);
+      expect(listed.first.destination, 'Kyoto'); // newer
+      expect(listed[1].destination, 'Tokyo'); // older
+    });
+
+    test('delete removes the file and updates list', () async {
+      final cache = FileItineraryCache(
+        loadDocumentsDirectory: () async => tempDirectory,
+      );
+      final itinerary = _sampleItinerary();
+
+      await cache.save(itinerary);
+      var listed = await cache.listItineraries();
+      expect(listed.length, 1);
+
+      await cache.deleteItinerary(listed.first.id);
+      listed = await cache.listItineraries();
+      expect(listed.isEmpty, isTrue);
+    });
+
     test('returns null when no cached itinerary exists', () async {
       final cache = FileItineraryCache(
         loadDocumentsDirectory: () async => tempDirectory,

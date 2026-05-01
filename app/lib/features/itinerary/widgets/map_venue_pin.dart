@@ -106,11 +106,7 @@ class _MapVenuePinState extends State<MapVenuePin> {
     }
 
     if (icon != null) {
-      return Icon(
-        icon,
-        size: 16,
-        color: AppColors.onSecondary,
-      );
+      return Icon(icon, size: 16, color: AppColors.onSecondary);
     }
 
     return Text(

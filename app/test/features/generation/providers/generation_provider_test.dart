@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app/core/models/itinerary.dart';
+import 'package:app/core/models/cached_itinerary_summary.dart';
 import 'package:app/core/models/sse_event.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/core/storage/itinerary_cache.dart';
@@ -59,6 +60,15 @@ class _InMemoryItineraryCache implements ItineraryCache {
   Future<void> save(Itinerary itinerary) async {
     latest = itinerary;
   }
+
+  @override
+  Future<bool> deleteItinerary(String id) async => false;
+
+  @override
+  Future<List<CachedItinerarySummary>> listItineraries() async => [];
+
+  @override
+  Future<Itinerary?> loadItinerary(String id) async => null;
 }
 
 Itinerary _sampleItinerary() {

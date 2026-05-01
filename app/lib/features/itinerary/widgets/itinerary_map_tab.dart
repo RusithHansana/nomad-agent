@@ -100,61 +100,64 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
         RepaintBoundary(
           key: _mapBoundaryKey,
           child: FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: validPoints.isNotEmpty
-                ? validPoints.first
-                : const LatLng(20.0, 0.0),
-            initialZoom: validPoints.isNotEmpty ? 12 : 2,
-          ),
-          children: [
-            if (widget.showTiles)
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'dev.nomadagent.app',
-              ),
-            if (_showRoutes && routePolylines.isNotEmpty)
-              KeyedSubtree(
-                key: const ValueKey<String>('map-route-layer'),
-                child: TweenAnimationBuilder<double>(
-                  tween: _routeFadeTween,
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOut,
-                  builder: (context, opacity, child) {
-                    return Opacity(opacity: opacity, child: child);
-                  },
-                  child: IgnorePointer(
-                    child: PolylineLayer(polylines: routePolylines),
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: validPoints.isNotEmpty
+                  ? validPoints.first
+                  : const LatLng(20.0, 0.0),
+              initialZoom: validPoints.isNotEmpty ? 12 : 2,
+            ),
+            children: [
+              if (widget.showTiles)
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'dev.nomadagent.app',
+                ),
+              if (_showRoutes && routePolylines.isNotEmpty)
+                KeyedSubtree(
+                  key: const ValueKey<String>('map-route-layer'),
+                  child: TweenAnimationBuilder<double>(
+                    tween: _routeFadeTween,
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOut,
+                    builder: (context, opacity, child) {
+                      return Opacity(opacity: opacity, child: child);
+                    },
+                    child: IgnorePointer(
+                      child: PolylineLayer(polylines: routePolylines),
+                    ),
                   ),
                 ),
-              ),
-            MarkerLayer(
-              markers: [
-                for (final item in _orderedVenues)
-                  if (_isValidCoordinate(
-                    item.venue.latitude,
-                    item.venue.longitude,
-                  ))
-                    Marker(
-                      width: 40,
-                      height: 40,
-                      point: LatLng(item.venue.latitude, item.venue.longitude),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _showVenueDetailSheet(item.venue),
-                        child: MapVenuePin(
-                          key: ValueKey<String>('map-pin-${item.order}'),
-                          number: item.order,
-                          isVerified: item.venue.isVerified,
-                          index: item.order - 1,
-                          venueType: item.venue.venueType,
+              MarkerLayer(
+                markers: [
+                  for (final item in _orderedVenues)
+                    if (_isValidCoordinate(
+                      item.venue.latitude,
+                      item.venue.longitude,
+                    ))
+                      Marker(
+                        width: 40,
+                        height: 40,
+                        point: LatLng(
+                          item.venue.latitude,
+                          item.venue.longitude,
+                        ),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _showVenueDetailSheet(item.venue),
+                          child: MapVenuePin(
+                            key: ValueKey<String>('map-pin-${item.order}'),
+                            number: item.order,
+                            isVerified: item.venue.isVerified,
+                            index: item.order - 1,
+                            venueType: item.venue.venueType,
+                          ),
                         ),
                       ),
-                    ),
-              ],
-            ),
-          ],
-        ),
+                ],
+              ),
+            ],
+          ),
         ),
         if (validPoints.isEmpty)
           IgnorePointer(
@@ -163,7 +166,9 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
                 margin: const EdgeInsets.all(AppSpacing.md),
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surface.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(AppSpacing.sm),
                 ),
                 child: Text(
@@ -268,24 +273,25 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
     }
 
     try {
-      final boundary = _mapBoundaryKey.currentContext
-          ?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary =
+          _mapBoundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null || !boundary.hasSize) {
-        debugPrint('Map snapshot skipped: boundary=${boundary != null}, '
-            'hasSize=${boundary?.hasSize}');
+        debugPrint(
+          'Map snapshot skipped: boundary=${boundary != null}, '
+          'hasSize=${boundary?.hasSize}',
+        );
         return;
       }
 
       final image = await boundary.toImage(pixelRatio: 2.0);
-      final byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null || !mounted) {
         return;
       }
 
-      ref.read(mapSnapshotProvider.notifier).state =
-          byteData.buffer.asUint8List();
+      ref.read(mapSnapshotProvider.notifier).state = byteData.buffer
+          .asUint8List();
       _hasCapturedSnapshot = true;
     } catch (e, stackTrace) {
       debugPrint('Map snapshot capture failed: $e');
