@@ -4,6 +4,7 @@ import 'package:app/features/history/history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:app/core/models/itinerary.dart';
 
@@ -11,6 +12,7 @@ class _FakeItineraryCache implements ItineraryCache {
   bool deleteCalled = false;
   String? deletedId;
   List<CachedItinerarySummary> items = [];
+  Itinerary? loadItineraryResult;
 
   _FakeItineraryCache([List<CachedItinerarySummary>? initialItems]) {
     items = initialItems ?? [];
@@ -27,7 +29,7 @@ class _FakeItineraryCache implements ItineraryCache {
   @override
   Future<List<CachedItinerarySummary>> listItineraries() async => items;
   @override
-  Future<Itinerary?> loadItinerary(String id) async => null;
+  Future<Itinerary?> loadItinerary(String id) async => loadItineraryResult;
   @override
   Future<Itinerary?> loadLatest() async => null;
   @override
@@ -135,5 +137,59 @@ void main() {
 
     expect(fakeCache.deleteCalled, isTrue);
     expect(fakeCache.deletedId, 'test_id.json');
+  });
+
+  testWidgets('Tapping an item loads itinerary and navigates', (tester) async {
+    final summaries = [
+      CachedItinerarySummary(
+        id: 'test_id.json',
+        destination: 'Tokyo',
+        durationDays: 3,
+        generatedAt: '2026-04-27T16:00:00Z',
+        venueCount: 12,
+      ),
+    ];
+    final fakeCache = _FakeItineraryCache(summaries);
+    fakeCache.loadItineraryResult = const Itinerary(
+      destination: 'Tokyo',
+      durationDays: 3,
+      generatedAt: '2026-04-27T16:00:00Z',
+      days: [],
+      costSummary: CostSummary(total: 0),
+    );
+
+    final router = GoRouter(
+      initialLocation: '/history',
+      routes: [
+        GoRoute(
+          path: '/history',
+          builder: (context, state) => const HistoryScreen(),
+        ),
+        GoRoute(
+          path: '/itinerary/:id',
+          builder: (context, state) => Text('Navigated to ${state.pathParameters['id']}'),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          cachedItinerariesProvider.overrideWith((ref) async => summaries),
+          itineraryCacheProvider.overrideWithValue(fakeCache),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Tokyo'), findsOneWidget);
+
+    await tester.tap(find.text('Tokyo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Navigated to 2026-04-27T16:00:00Z'), findsOneWidget);
   });
 }
