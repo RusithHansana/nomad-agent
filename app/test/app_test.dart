@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/app.dart';
 import 'package:app/core/theme/app_colors.dart';
@@ -9,9 +10,22 @@ import 'package:app/core/theme/app_theme.dart';
 import 'package:app/core/theme/app_typography.dart';
 import 'package:app/core/constants/app_spacing.dart';
 import 'package:app/core/network/api_client.dart';
+import 'package:app/core/storage/itinerary_cache.dart';
+import 'package:app/core/models/itinerary.dart';
+import 'package:app/core/models/cached_itinerary_summary.dart';
+
+class MockItineraryCache implements ItineraryCache {
+  @override Future<void> clearAll() async {}
+  @override Future<bool> deleteItinerary(String id) async => true;
+  @override Future<List<CachedItinerarySummary>> listItineraries() async => [];
+  @override Future<Itinerary?> loadItinerary(String id) async => null;
+  @override Future<Itinerary?> loadLatest() async => null;
+  @override Future<void> save(Itinerary itinerary) async {}
+}
 
 void main() {
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     // Prevent google_fonts from making HTTP requests during tests.
     GoogleFonts.config.allowRuntimeFetching = false;
   });
@@ -19,14 +33,24 @@ void main() {
     testWidgets('App renders inside ProviderScope without crashing', (
       tester,
     ) async {
-      await tester.pumpWidget(const ProviderScope(child: App()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          child: const App(),
+        ),
+      );
 
       // The Home screen should be visible as the initial route
       expect(find.text('Home'), findsWidgets);
     });
 
     testWidgets('App uses Material 3', (tester) async {
-      await tester.pumpWidget(const ProviderScope(child: App()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          child: const App(),
+        ),
+      );
 
       final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
       expect(materialApp.theme?.useMaterial3, isTrue);
@@ -35,7 +59,12 @@ void main() {
     });
 
     testWidgets('Bottom NavigationBar has 3 destinations', (tester) async {
-      await tester.pumpWidget(const ProviderScope(child: App()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          child: const App(),
+        ),
+      );
 
       final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(navBar.destinations.length, 3);
@@ -44,24 +73,34 @@ void main() {
     testWidgets('Tapping History tab navigates to History screen', (
       tester,
     ) async {
-      await tester.pumpWidget(const ProviderScope(child: App()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          child: const App(),
+        ),
+      );
 
       // Tap the History tab (index 1)
       await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
 
-      expect(find.text('History Screen'), findsOneWidget);
+      expect(find.text('Your travel adventures start here. Type your first destination above!'), findsOneWidget);
     });
 
     testWidgets('Tapping Settings tab navigates to Settings screen', (
       tester,
     ) async {
-      await tester.pumpWidget(const ProviderScope(child: App()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          child: const App(),
+        ),
+      );
 
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Settings Screen'), findsOneWidget);
+      expect(find.text('Dark Mode'), findsOneWidget);
     });
   });
 

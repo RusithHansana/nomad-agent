@@ -1,0 +1,236 @@
+Resolving dependencies...
+Downloading packages...
+  flutter_map 7.0.2 (8.3.0 available)
+  flutter_riverpod 2.6.1 (3.3.1 available)
+  go_router 14.8.1 (17.2.2 available)
+  google_fonts 6.3.3 (8.1.0 available)
+  hooks 1.0.2 (1.0.3 available)
+  latlong2 0.9.1 (0.10.1 available)
+  matcher 0.12.19 (0.12.20 available)
+  meta 1.17.0 (1.18.2 available)
+  mgrs_dart 2.0.0 (3.0.0 available)
+  native_toolchain_c 0.17.6 (0.18.0 available)
+  proj4dart 2.1.0 (3.0.0 available)
+  riverpod 2.6.1 (3.2.1 available)
+  share_plus 10.1.4 (13.1.0 available)
+  share_plus_platform_interface 5.0.2 (7.1.0 available)
+  test_api 0.7.10 (0.7.12 available)
+  unicode 0.3.1 (1.1.9 available)
+  vector_math 2.2.0 (2.3.0 available)
+  vm_service 15.0.2 (15.2.0 available)
+  win32 5.15.0 (6.1.0 available)
+  xml 6.6.1 (7.0.1 available)
+Got dependencies!
+20 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/models/itinerary_models_test.dart
+00:00 +0: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/models/itinerary_models_test.dart: Itinerary JSON models fromJson/toJson round-trip keeps snake_case contract
+00:00 +1: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/models/itinerary_models_test.dart: SSE union parser parses itinerary_complete payload into ItineraryCompleteEvent
+00:00 +2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/storage/itinerary_cache_test.dart: FileItineraryCache saves and loads latest itinerary from local storage
+00:00 +3: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/storage/itinerary_cache_test.dart: FileItineraryCache saving creates a file in itineraries/
+00:00 +4: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/storage/itinerary_cache_test.dart: FileItineraryCache list cached itineraries returning newest first
+00:00 +5: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/storage/itinerary_cache_test.dart: FileItineraryCache delete removes the file and updates list
+00:00 +6: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/core/storage/itinerary_cache_test.dart: FileItineraryCache returns null when no cached itinerary exists
+00:01 +7: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/home/home_screen_test.dart: Home prompt input flow Go button is disabled when prompt is empty
+00:02 +8: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/home/home_screen_test.dart: Home prompt input flow Go button is disabled when prompt is empty
+00:03 +9: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/generation/generation_screen_test.dart: GenerationScreen shows cold start overlay after 3 seconds without events
+00:04 +10: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/map_venue_pin_test.dart: MapVenuePin verified pin uses terracotta and shows number
+00:04 +11: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/map_venue_pin_test.dart: MapVenuePin verified pin uses terracotta and shows number
+00:04 +12: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:04 +13: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:04 +14: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:04 +15: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:04 +15: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/pdf/pdf_generator_test.dart: generateItineraryPdf generates and writes a non-empty PDF for special characters
+Unable to find a font to draw "☕" (U+2615) try to provide a TextStyle.fontFallback
+00:05 +16: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:05 +17: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:05 +17: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/pdf/pdf_generator_test.dart: generateItineraryPdf writes exported pdf into documents/exports folder
+Unable to find a font to draw "☕" (U+2615) try to provide a TextStyle.fontFallback
+00:05 +18: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:05 +19: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:05 +20: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:05 +21: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:05 +22: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +23: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +24: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +25: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +26: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +27: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +28: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen renders day headers with stop count and estimated cost
+00:06 +29: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/history/history_screen_test.dart: List renders the expected fields for at least one cached itinerary
+00:06 +30: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen shows Timeline and Map tabs and renders map pins
+00:07 +31: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/settings/settings_screen_test.dart: SettingsScreen renders dark mode toggle, about section, and clear history
+00:07 +32: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/settings/settings_screen_test.dart: SettingsScreen renders dark mode toggle, about section, and clear history
+00:07 +33: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/settings/settings_screen_test.dart: SettingsScreen renders dark mode toggle, about section, and clear history
+00:08 +34: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/settings/settings_screen_test.dart: SettingsScreen renders dark mode toggle, about section, and clear history
+00:08 +35: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/settings/settings_screen_test.dart: SettingsScreen renders dark mode toggle, about section, and clear history
+00:08 +36: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/settings/settings_screen_test.dart: SettingsScreen renders dark mode toggle, about section, and clear history
+00:08 +37: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:08 +38: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:09 +39: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:09 +40: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:09 +41: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:09 +42: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:09 +43: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:10 +44: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:10 +45: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App renders inside ProviderScope without crashing
+00:10 +45: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen shows error snackbar with retry action when export fails
+PDF Export failed: Exception: export failed
+Stack trace: #0      main.<anonymous closure>.<anonymous closure>.fakeExport (file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart:375:9)
+#1      PdfExportController.export (package:app/features/pdf/providers/pdf_export_provider.dart:70:58)
+#2      ItineraryScreen.build.<anonymous closure> (package:app/features/itinerary/itinerary_screen.dart:180:36)
+#3      _InkResponseState.handleTap (package:flutter/src/material/ink_well.dart:1224:21)
+#4      GestureRecognizer.invokeCallback (package:flutter/src/gestures/recognizer.dart:345:24)
+#5      TapGestureRecognizer.handleTapUp (package:flutter/src/gestures/tap.dart:758:11)
+#6      BaseTapGestureRecognizer._checkUp (package:flutter/src/gestures/tap.dart:383:5)
+#7      BaseTapGestureRecognizer.handlePrimaryPointer (package:flutter/src/gestures/tap.dart:314:7)
+#8      PrimaryPointerGestureRecognizer.handleEvent (package:flutter/src/gestures/recognizer.dart:721:9)
+#9      PointerRouter._dispatch (package:flutter/src/gestures/pointer_router.dart:97:12)
+#10     PointerRouter._dispatchEventToRoutes.<anonymous closure> (package:flutter/src/gestures/pointer_router.dart:140:9)
+#11     _LinkedHashMapMixin.forEach (dart:_compact_hash:765:13)
+#12     PointerRouter._dispatchEventToRoutes (package:flutter/src/gestures/pointer_router.dart:138:18)
+#13     PointerRouter.route (package:flutter/src/gestures/pointer_router.dart:128:7)
+#14     GestureBinding.handleEvent (package:flutter/src/gestures/binding.dart:528:19)
+#15     GestureBinding.dispatchEvent (package:flutter/src/gestures/binding.dart:498:22)
+#16     RendererBinding.dispatchEvent (package:flutter/src/rendering/binding.dart:473:11)
+#17     GestureBinding._handlePointerEventImmediately (package:flutter/src/gestures/binding.dart:437:7)
+#18     GestureBinding.handlePointerEvent (package:flutter/src/gestures/binding.dart:394:5)
+#19     TestWidgetsFlutterBinding.handlePointerEventForSource.<anonymous closure> (package:flutter_test/src/binding.dart:1301:42)
+#20     TestWidgetsFlutterBinding.withPointerEventSource (package:flutter_test/src/binding.dart:1311:11)
+#21     TestWidgetsFlutterBinding.handlePointerEventForSource (package:flutter_test/src/binding.dart:1301:5)
+#22     WidgetTester.sendEventToBinding.<anonymous closure> (package:flutter_test/src/widget_tester.dart:869:15)
+#23     _rootRun (dart:async/zone_root.dart:35:13)
+#24     _CustomZone.run (dart:async/zone.dart:726:19)
+#25     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#26     WidgetTester.sendEventToBinding (package:flutter_test/src/widget_tester.dart:868:27)
+#27     TestGesture.up.<anonymous closure> (package:flutter_test/src/test_pointer.dart:587:26)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#31     TestGesture.up (package:flutter_test/src/test_pointer.dart:580:27)
+#32     WidgetController.tapAt.<anonymous closure> (package:flutter_test/src/controller.dart:1150:21)
+<asynchronous suspension>
+#33     TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#34     main.<anonymous closure>.<anonymous closure> (file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart:393:7)
+<asynchronous suspension>
+#35     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#36     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#37     StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+
+PDF Export failed: Exception: export failed
+Stack trace: #0      main.<anonymous closure>.<anonymous closure>.fakeExport (file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart:375:9)
+#1      PdfExportController.export (package:app/features/pdf/providers/pdf_export_provider.dart:70:58)
+#2      ItineraryScreen.build.<anonymous closure>.<anonymous closure> (package:app/features/itinerary/itinerary_screen.dart:64:18)
+#3      _SnackBarActionState._handlePressed (package:flutter/src/material/snack_bar.dart:153:21)
+#4      _InkResponseState.handleTap (package:flutter/src/material/ink_well.dart:1224:21)
+#5      GestureRecognizer.invokeCallback (package:flutter/src/gestures/recognizer.dart:345:24)
+#6      TapGestureRecognizer.handleTapUp (package:flutter/src/gestures/tap.dart:758:11)
+#7      BaseTapGestureRecognizer._checkUp (package:flutter/src/gestures/tap.dart:383:5)
+#8      BaseTapGestureRecognizer.acceptGesture (package:flutter/src/gestures/tap.dart:353:7)
+#9      GestureArenaManager.sweep (package:flutter/src/gestures/arena.dart:173:27)
+#10     GestureBinding.handleEvent (package:flutter/src/gestures/binding.dart:532:20)
+#11     GestureBinding.dispatchEvent (package:flutter/src/gestures/binding.dart:498:22)
+#12     RendererBinding.dispatchEvent (package:flutter/src/rendering/binding.dart:473:11)
+#13     GestureBinding._handlePointerEventImmediately (package:flutter/src/gestures/binding.dart:437:7)
+#14     GestureBinding.handlePointerEvent (package:flutter/src/gestures/binding.dart:394:5)
+#15     TestWidgetsFlutterBinding.handlePointerEventForSource.<anonymous closure> (package:flutter_test/src/binding.dart:1301:42)
+#16     TestWidgetsFlutterBinding.withPointerEventSource (package:flutter_test/src/binding.dart:1311:11)
+#17     TestWidgetsFlutterBinding.handlePointerEventForSource (package:flutter_test/src/binding.dart:1301:5)
+#18     WidgetTester.sendEventToBinding.<anonymous closure> (package:flutter_test/src/widget_tester.dart:869:15)
+#19     _rootRun (dart:async/zone_root.dart:35:13)
+#20     _CustomZone.run (dart:async/zone.dart:726:19)
+#21     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#22     WidgetTester.sendEventToBinding (package:flutter_test/src/widget_tester.dart:868:27)
+#23     TestGesture.up.<anonymous closure> (package:flutter_test/src/test_pointer.dart:587:26)
+#24     _rootRun (dart:async/zone_root.dart:35:13)
+#25     _CustomZone.run (dart:async/zone.dart:726:19)
+#26     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#27     TestGesture.up (package:flutter_test/src/test_pointer.dart:580:27)
+#28     WidgetController.tapAt.<anonymous closure> (package:flutter_test/src/controller.dart:1150:21)
+<asynchronous suspension>
+#29     TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#30     main.<anonymous closure>.<anonymous closure> (file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart:401:7)
+<asynchronous suspension>
+#31     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#32     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#33     StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+
+00:10 +46: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/features/itinerary/itinerary_screen_test.dart: ItineraryScreen shows error snackbar with retry action when export fails
+00:10 +47: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap App uses Material 3
+00:10 +48: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap Bottom NavigationBar has 3 destinations
+00:10 +49: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap Tapping History tab navigates to History screen
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+pumpAndSettle timed out
+
+When the exception was thrown, this was the stack:
+#0      WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:717:11)
+<asynchronous suspension>
+#1      TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#2      main.<anonymous closure>.<anonymous closure> (file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart:53:7)
+<asynchronous suspension>
+#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  Tapping History tab navigates to History screen
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:16 +49 -1: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap Tapping History tab navigates to History screen [E]
+  Test failed. See exception logs above.
+  The test description was: Tapping History tab navigates to History screen
+  
+00:16 +49 -1: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap Tapping Settings tab navigates to Settings screen
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Settings Screen": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart:66:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart line 66
+The test description was:
+  Tapping Settings tab navigates to Settings screen
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:17 +49 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: App bootstrap Tapping Settings tab navigates to Settings screen [E]
+  Test failed. See exception logs above.
+  The test description was: Tapping Settings tab navigates to Settings screen
+  
+00:17 +49 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: Theme tokens Light theme uses correct primary color
+00:17 +50 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: Theme tokens Dark theme uses correct primary color
+00:17 +51 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: Theme tokens Light theme scaffold background is beige sand
+00:17 +52 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: Theme tokens Dark theme scaffold background is dark gray
+00:17 +53 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppColors Primary is Deep Forest Green #2C3E2D
+00:17 +54 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppColors Secondary is Terracotta #C8956C
+00:17 +55 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppColors Background is Beige Sand #FAF7F2
+00:17 +56 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppColors Dark background is #1E1E1E
+00:17 +57 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppTypography Display is 28px bold
+00:17 +58 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppTypography Body is 15px regular
+00:17 +59 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppTypography Caption is 11px medium
+00:17 +60 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: AppSpacing 4px base scale values are correct
+00:17 +61 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: ApiClient Dio instance has correct base URL default
+00:17 +62 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: ApiClient Dio instance has 35s total timeout
+00:17 +63 -2: /home/rhansana/Documents/dev/portfolio-projects/nomad-agent/app/test/app_test.dart: ApiClient Dio instance has API key interceptor
+00:17 +64 -2: Some tests failed.

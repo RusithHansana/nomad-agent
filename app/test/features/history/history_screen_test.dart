@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:app/core/models/itinerary.dart';
 
 class _FakeItineraryCache implements ItineraryCache {
+  @override
+  Future<void> clearAll() async {}
   bool deleteCalled = false;
   String? deletedId;
   List<CachedItinerarySummary> items = [];

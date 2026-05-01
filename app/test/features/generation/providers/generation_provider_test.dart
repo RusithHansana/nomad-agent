@@ -49,6 +49,8 @@ void main() {
 }
 
 class _InMemoryItineraryCache implements ItineraryCache {
+  @override
+  Future<void> clearAll() async {}
   Itinerary? latest;
 
   @override
