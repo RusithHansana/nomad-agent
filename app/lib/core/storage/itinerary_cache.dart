@@ -13,6 +13,7 @@ abstract class ItineraryCache {
   Future<List<CachedItinerarySummary>> listItineraries();
   Future<Itinerary?> loadItinerary(String id);
   Future<bool> deleteItinerary(String id);
+  Future<void> clearAll();
 }
 
 typedef ItineraryCacheDirectoryLoader = Future<Directory> Function();
@@ -178,6 +179,31 @@ class FileItineraryCache implements ItineraryCache {
       }
     }
     return false;
+  }
+
+  @override
+  Future<void> clearAll() async {
+    final dir = await _getItinerariesDir();
+    if (dir == null) return;
+    try {
+      final files = await dir
+          .list()
+          .where((e) => e is File && e.path.endsWith('.json'))
+          .toList();
+      for (final f in files) {
+        try {
+          await (f as File).delete();
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    // Also delete legacy file to prevent loadLatest() from returning stale data
+    final legacyFile = await _tryResolveFile();
+    if (legacyFile != null && await legacyFile.exists()) {
+      try {
+        await legacyFile.delete();
+      } catch (_) {}
+    }
   }
 
   @override
