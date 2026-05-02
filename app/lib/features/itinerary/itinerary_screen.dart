@@ -15,6 +15,7 @@ import 'providers/itinerary_store_provider.dart';
 
 import 'widgets/cost_summary_section.dart';
 import 'widgets/day_header.dart';
+import 'widgets/degradation_banner.dart';
 import 'widgets/itinerary_map_tab.dart';
 import 'widgets/venue_timeline_card.dart';
 
@@ -215,11 +216,25 @@ class _TimelineTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showBanner = itinerary.isDegraded;
+    // Extra item count: +1 for cost summary, +1 for banner (when degraded)
+    final extraItems = showBanner ? 2 : 1;
     return ListView.builder(
       key: const ValueKey<String>('itinerary-timeline-list'),
       padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: itinerary.days.length + 1,
-      itemBuilder: (context, dayIndex) {
+      itemCount: itinerary.days.length + extraItems,
+      itemBuilder: (context, index) {
+        // Degradation banner is the very first item
+        if (showBanner && index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: const DegradationBanner(),
+          );
+        }
+
+        // Shift index to account for the optional banner
+        final dayIndex = showBanner ? index - 1 : index;
+
         if (dayIndex == itinerary.days.length) {
           return CostSummarySection(costSummary: itinerary.costSummary);
         }

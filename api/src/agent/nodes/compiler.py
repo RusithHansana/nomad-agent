@@ -9,6 +9,7 @@ from src.models.events import ThoughtLogData, ThoughtLogEvent
 from src.models.response import CostSummary, DayPlan, ItineraryResponse, Venue
 
 HOURS_UNVERIFIED_NOTE = "⚠️ Hours unverified — recommend calling ahead"
+TAVILY_UNAVAILABLE_NOTE = "AI-suggested — live verification was unavailable"
 VENUE_TASK_NAMES = {"local research", "event checking", "interest deep-dive"}
 TIME_SLOTS = ("morning", "midday", "afternoon", "evening")
 MAX_VENUE_NAME_LENGTH = 120
@@ -185,7 +186,7 @@ def _strip_urls(text: str) -> str:
     return _URL_PATTERN.sub("", text).strip()
 
 
-def _map_result_to_venue(raw: dict[str, object]) -> Venue:
+def _map_result_to_venue(raw: dict[str, object], *, force_all_unverified: bool = False) -> Venue:
     raw_name = str(
         raw.get("name") or raw.get("title") or "Unknown Venue"
     ).strip() or "Unknown Venue"
@@ -211,7 +212,8 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
     if venue_type not in VALID_VENUE_TYPES:
         venue_type = DEFAULT_VENUE_TYPE
 
-    force_unverified = _as_bool(raw.get("_degraded_unverified"), default=False)
+    # force_all_unverified wins over per-result _degraded_unverified flag
+    force_unverified = force_all_unverified or _as_bool(raw.get("_degraded_unverified"), default=False)
     has_coords = not (
         _as_float(raw.get("latitude") or raw.get("lat"), default=0.0) == 0.0
         and _as_float(raw.get("longitude") or raw.get("lng") or raw.get("lon"), default=0.0) == 0.0
@@ -229,7 +231,12 @@ def _map_result_to_venue(raw: dict[str, object]) -> Venue:
 
     is_verified = confidence >= VERIFICATION_THRESHOLD
 
-    if force_unverified:
+    if force_all_unverified:
+        # Full Tavily unavailability — override verification result and set specific note
+        is_verified = False
+        verification_note = TAVILY_UNAVAILABLE_NOTE
+    elif force_unverified:
+        is_verified = False
         verification_note = "Limited source confidence"
     elif not is_verified:
         verification_note = HOURS_UNVERIFIED_NOTE
@@ -449,6 +456,7 @@ async def compiler_node(state: AgentState) -> AgentState:
         str(state.get("destination", "Unknown Destination")).strip() or "Unknown Destination"
     )
     duration_days = max(1, _as_int(state.get("duration_days", 1)) or 1)
+    tavily_unavailable = bool(state.get("tavily_unavailable", False))
     events, event_cursor, event_base_cursor = get_event_buffer(state)
     events, event_cursor, event_base_cursor = append_event_to_buffer(
         events=events,
@@ -471,7 +479,7 @@ async def compiler_node(state: AgentState) -> AgentState:
             continue
         for entry in task_entries:
             if isinstance(entry, dict):
-                venues.append(_map_result_to_venue(entry))
+                venues.append(_map_result_to_venue(entry, force_all_unverified=tavily_unavailable))
 
     venues = _deduplicate_venues(venues)
     days = _distribute_venues_by_day(venues, duration_days)
@@ -496,6 +504,8 @@ async def compiler_node(state: AgentState) -> AgentState:
         days=optimized_days,
         cost_summary=cost_summary,
         generated_at=datetime.now(UTC).isoformat(),
+        degraded=True if tavily_unavailable else None,
+        degradation_reason="tavily_unavailable" if tavily_unavailable else None,
     )
     events, event_cursor, event_base_cursor = append_event_to_buffer(
         events=events,

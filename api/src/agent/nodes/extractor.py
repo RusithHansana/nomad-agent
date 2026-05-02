@@ -77,6 +77,29 @@ EXTRACTION_PROMPT = (
     "No whitespace, newlines, indentation, code fences, or explanation."
 )
 
+LLM_ONLY_VENUE_PROMPT = (
+    "You are a travel itinerary planner. "
+    "Suggest realistic travel venues for a trip to {destination} lasting {duration_days} day(s). "
+    "The traveler's interests include: {categories}.\n\n"
+    "For each venue, provide:\n"
+    "- name: venue name in English\n"
+    '- venue_type: one of "restaurant","attraction","nature","event","tour"\n'
+    "- address: neighborhood or area (NOT URLs)\n"
+    "- latitude: decimal latitude using your knowledge, else null\n"
+    "- longitude: decimal longitude using your knowledge, else null\n"
+    "- opening_hours: typical hours if known, else null\n"
+    "- rating: estimated rating /5.0 if known, else null\n"
+    "- price_level: 1-4 (1=budget,2=moderate,3=upscale,4=luxury) if known, else null\n"
+    "- source_url: null (no web source available)\n\n"
+    "Rules:\n"
+    "- Suggest ONLY real, named venues that exist in {destination}\n"
+    "- Venue names must be in English\n"
+    "- Maximum {max_venues} venues total\n"
+    "- Distribute venues across the traveler's interest categories\n\n"
+    "Respond with ONLY a compact minified JSON array. "
+    "No whitespace, newlines, indentation, code fences, or explanation."
+)
+
 
 def _clean_raw_content(text: str) -> str:
     """Strip HTML and markdown noise from raw page content, preserving informational text."""
@@ -370,6 +393,57 @@ async def _call_gemini(prompt: str) -> str | None:
         return None
 
 
+async def _generate_llm_only_venues(
+    destination: str,
+    categories: list[str],
+    duration_days: int,
+    llm_caller: Callable[[str], Awaitable[str | None]] | None = None,
+) -> list[dict[str, Any]]:
+    """Generate venue suggestions using Gemini when Tavily is fully unavailable."""
+    categories_str = ", ".join(categories) if categories else "general sightseeing"
+    max_venues = min(MAX_VENUES_PER_TASK * 3, 24)  # up to 24 for LLM-only mode
+    prompt = LLM_ONLY_VENUE_PROMPT.format(
+        destination=destination,
+        duration_days=duration_days,
+        categories=categories_str,
+        max_venues=max_venues,
+    )
+    prompt = _minify_prompt(prompt)
+
+    if llm_caller is not None:
+        response_text = await llm_caller(prompt)
+    else:
+        response_text = await _call_gemini(prompt)
+
+    if response_text is None:
+        logger.warning("LLM-only venue generation failed for destination '%s'", destination)
+        return []
+
+    try:
+        venues = _parse_extraction_response(response_text)
+    except (json.JSONDecodeError, ValueError):
+        logger.warning(
+            "Failed to parse LLM-only venue response for '%s'. Raw: %s",
+            destination,
+            response_text[:500] if response_text else "<empty>",
+        )
+        return []
+
+    # Mark all LLM-only venues as degraded unverified
+    degraded_venues: list[dict[str, Any]] = []
+    for venue in venues:
+        venue_copy = dict(venue)
+        venue_copy["_degraded_unverified"] = True
+        venue_copy["source_url"] = None
+        degraded_venues.append(venue_copy)
+
+    logger.info(
+        "LLM-only venue generation produced %d venues for '%s'",
+        len(degraded_venues), destination,
+    )
+    return degraded_venues
+
+
 async def pre_extractor_node(state: AgentState) -> dict[str, Any]:
     """Lightweight node to emit the 'Extracting' event before the heavy LLM work.
 
@@ -466,6 +540,9 @@ async def extractor_node(
 ) -> dict[str, Any]:
     """Extract structured venue data from raw Tavily results using Gemini.
 
+    When Tavily is fully unavailable (tavily_unavailable=True in state),
+    falls back to LLM-only venue generation using Gemini.
+
     Processes each venue task independently and in parallel using
     asyncio.gather to minimize wall-clock time. Results are aggregated
     and enriched with source URL metadata before being merged back
@@ -479,6 +556,47 @@ async def extractor_node(
     raw_task_results = state.get("task_results", {})
     task_results = dict(raw_task_results) if isinstance(raw_task_results, dict) else {}
     destination = str(state.get("destination", "")).strip() or "Unknown Destination"
+    tavily_unavailable = bool(state.get("tavily_unavailable", False))
+
+    # ── LLM-only fallback path ────────────────────────────────────────────
+    if tavily_unavailable:
+        events, event_cursor, event_base_cursor = append_event_to_buffer(
+            events=events,
+            event_cursor=event_cursor,
+            event_base_cursor=event_base_cursor,
+            payload=ThoughtLogEvent(
+                timestamp=datetime.now(UTC).isoformat(),
+                data=ThoughtLogData(
+                    message="Generating AI-only suggestions (verification service unavailable)",
+                    icon="🤖",
+                    step="extractor",
+                ),
+            ).to_payload(),
+        )
+        raw_categories = state.get("interest_categories", [])
+        categories: list[str] = list(raw_categories) if isinstance(raw_categories, list) else []
+        duration_days = max(1, int(state.get("duration_days") or 1))
+
+        llm_venues = await _generate_llm_only_venues(
+            destination=destination,
+            categories=categories,
+            duration_days=duration_days,
+            llm_caller=llm_caller,
+        )
+
+        # Place all LLM-only venues under the "local research" task key
+        # so the compiler picks them up via _is_venue_task()
+        llm_task_results = {"local research": llm_venues}
+
+        return {
+            **state,
+            "events": events,
+            "event_cursor": event_cursor,
+            "event_base_cursor": event_base_cursor,
+            "task_results": {**task_results, **llm_task_results},
+        }
+
+    # ── Normal Tavily-backed extraction path ──────────────────────────────
 
     # Identify venue tasks to process
     venue_tasks = [

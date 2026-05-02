@@ -451,3 +451,105 @@ async def test_compiler_does_not_use_raw_content_as_address_fallback() -> None:
     venue = itinerary["days"][0]["venues"][0]
     assert venue["address"] == "Address unavailable"
     assert "Full page scrape" not in venue["address"]
+
+
+@pytest.mark.asyncio
+async def test_compiler_forces_all_venues_unverified_when_tavily_unavailable() -> None:
+    """Task 7.2 — When tavily_unavailable=True, ALL venues must be is_verified=False."""
+    state = {
+        "prompt": "trip to Kandy",
+        "destination": "Kandy",
+        "duration_days": 1,
+        "interest_categories": ["culture"],
+        "tasks": [],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": "Temple of the Tooth",
+                    "address": "Sri Dalada Veediya, Kandy",
+                    "opening_hours": ["Daily 05:30-20:00"],
+                    "rating": 4.8,
+                    "url": "https://example.com/tooth-temple",
+                    # No _degraded_unverified flag — normally would be verified
+                },
+            ]
+        },
+        "error_event": None,
+        "tavily_unavailable": True,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    venues = itinerary["days"][0]["venues"]
+    assert len(venues) > 0
+    for venue in venues:
+        assert venue["is_verified"] is False, f"Venue '{venue['name']}' should be unverified"
+        assert venue["verification_note"] == "AI-suggested — live verification was unavailable"
+
+
+@pytest.mark.asyncio
+async def test_compiler_sets_degraded_metadata_when_tavily_unavailable() -> None:
+    """Task 7.3 — When tavily_unavailable=True, itinerary response must have degraded=True."""
+    state = {
+        "prompt": "trip to Kandy",
+        "destination": "Kandy",
+        "duration_days": 1,
+        "interest_categories": ["culture"],
+        "tasks": [],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": "Peradeniya Botanical Garden",
+                    "address": "Peradeniya, Kandy",
+                    "url": "https://example.com/peradeniya",
+                }
+            ]
+        },
+        "error_event": None,
+        "tavily_unavailable": True,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    assert itinerary.get("degraded") is True
+    assert itinerary.get("degradation_reason") == "tavily_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_compiler_does_not_set_degraded_metadata_when_tavily_available() -> None:
+    """Task 7.3 — When tavily_unavailable=False (normal run), degraded fields are absent."""
+    state = {
+        "prompt": "trip to Kandy",
+        "destination": "Kandy",
+        "duration_days": 1,
+        "interest_categories": ["culture"],
+        "tasks": [],
+        "tavily_calls_made": 3,
+        "events": [],
+        "task_results": {
+            "Local Research": [
+                {
+                    "name": "Temple of the Tooth",
+                    "address": "Sri Dalada Veediya, Kandy",
+                    "opening_hours": ["Daily 05:30-20:00"],
+                    "url": "https://example.com/tooth-temple",
+                }
+            ]
+        },
+        "error_event": None,
+        "tavily_unavailable": False,
+    }
+
+    result = await compiler_node(state)  # type: ignore[arg-type]
+
+    itinerary = _itinerary_from_result(result)
+    # degraded and degradation_reason should be absent (exclude_none=True on model)
+    assert itinerary.get("degraded") is None
+    assert itinerary.get("degradation_reason") is None
+

@@ -352,3 +352,114 @@ async def test_researcher_caps_query_length_before_search() -> None:
 
 def test_researcher_declares_iteration_cap_constant() -> None:
     assert MAX_SEARCH_ITERATIONS_PER_TASK == 5
+
+
+class AlwaysUnavailableSearchTool:
+    """Simulates Tavily being completely unreachable — every search raises TavilyUnavailableError."""
+
+    def __init__(self) -> None:
+        self.calls_made = 0
+
+    async def search(self, query: str, *, max_results: int) -> list[dict[str, object]]:
+        self.calls_made += 1
+        raise TavilyUnavailableError("Tavily is completely down")
+
+
+@pytest.mark.asyncio
+async def test_researcher_sets_tavily_unavailable_flag_when_fully_unavailable() -> None:
+    """Task 7.1 — When Tavily fails on first task with no prior results, sets tavily_unavailable=True."""
+    search_tool = AlwaysUnavailableSearchTool()
+    state = {
+        "prompt": "3 days in Kandy",
+        "destination": "Kandy",
+        "duration_days": 3,
+        "interest_categories": ["culture", "food"],
+        "tasks": [
+            {"name": "Local Research", "query": "restaurants in Kandy"},
+            {"name": "Event Checking", "query": "events in Kandy"},
+        ],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+        "tavily_unavailable": False,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    # Tavily completely unavailable — flag must be set
+    assert result["tavily_unavailable"] is True
+    # Only 1 search call made (failed on first task — remaining tasks skipped)
+    assert search_tool.calls_made == 1
+    # Must emit a thought_log degradation warning, NOT a terminal error event
+    thought_log_events = [
+        e for e in result["events"] if e.get("event_type") == "thought_log"
+    ]
+    degradation_events = [
+        e for e in thought_log_events
+        if "unavailable" in (e.get("data") or {}).get("message", "").lower()
+    ]
+    assert len(degradation_events) >= 1, "Expected at least one thought_log degradation event"
+    # Must NOT emit a terminal error event
+    error_events = [e for e in result["events"] if e.get("event_type") == "error"]
+    assert len(error_events) == 0, "Full Tavily unavailability must not emit a terminal error event"
+
+
+@pytest.mark.asyncio
+async def test_researcher_thought_log_degradation_event_content() -> None:
+    """Task 7.1 — The degradation thought_log event must include the ⚠️ icon and correct message."""
+    search_tool = AlwaysUnavailableSearchTool()
+    state = {
+        "prompt": "trip to Colombo",
+        "destination": "Colombo",
+        "duration_days": 2,
+        "interest_categories": ["food"],
+        "tasks": [{"name": "Local Research", "query": "best restaurants Colombo"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+        "tavily_unavailable": False,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    thought_log_events = [e for e in result["events"] if e.get("event_type") == "thought_log"]
+    degradation_events = [
+        e for e in thought_log_events
+        if (e.get("data") or {}).get("icon") == "⚠️"
+    ]
+    assert len(degradation_events) >= 1
+    msg = degradation_events[0]["data"]["message"]
+    assert "unavailable" in msg.lower()
+    assert "unverified" in msg.lower()
+
+
+@pytest.mark.asyncio
+async def test_researcher_skips_remaining_tasks_when_fully_unavailable() -> None:
+    """Task 7.1 — When full Tavily unavailability detected, remaining tasks should be skipped."""
+    search_tool = AlwaysUnavailableSearchTool()
+    three_tasks = [
+        {"name": "Local Research", "query": "q1"},
+        {"name": "Event Checking", "query": "q2"},
+        {"name": "Interest Deep-Dive", "query": "q3"},
+    ]
+    state = {
+        "prompt": "trip",
+        "destination": "Colombo",
+        "duration_days": 2,
+        "interest_categories": ["food"],
+        "tasks": three_tasks,
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {},
+        "error_event": None,
+        "tavily_unavailable": False,
+    }
+
+    result = await researcher_node(state, search_tool=search_tool)  # type: ignore[arg-type]
+
+    # Only 1 Tavily call made despite 3 tasks
+    assert search_tool.calls_made == 1
+    assert result["tavily_unavailable"] is True
+

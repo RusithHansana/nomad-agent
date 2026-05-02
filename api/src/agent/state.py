@@ -36,6 +36,7 @@ class AgentState(TypedDict):
     task_results: dict[str, list[dict[str, object]]]
     error_event: dict[str, object] | None
     itinerary_response: dict[str, object] | None
+    tavily_unavailable: bool
 
 
 def _coerce_int(value: object, default: int) -> int:
