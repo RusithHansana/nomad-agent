@@ -3,10 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app/features/settings/providers/theme_provider.dart';
 import 'package:app/core/storage/itinerary_cache.dart';
 
+/// Settings screen providing Dark Mode toggle, About info, and Clear History.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   Future<void> _showClearHistoryDialog(BuildContext context, WidgetRef ref) async {
+    // Capture cache reference before the async gap to avoid using ref after
+    // the widget may have been unmounted.
+    final cache = ref.read(itineraryCacheProvider);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -30,9 +35,9 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      await ref.read(itineraryCacheProvider).clearAll();
-      ref.invalidate(cachedItinerariesProvider);
+      await cache.clearAll();
       if (context.mounted) {
+        ref.invalidate(cachedItinerariesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('History cleared'),
@@ -56,8 +61,10 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Dark Mode'),
             subtitle: const Text('Toggle between light and dark themes'),
             value: themeMode == ThemeMode.dark,
-            onChanged: (_) {
-              ref.read(themeModeProvider.notifier).toggle();
+            onChanged: (value) {
+              ref.read(themeModeProvider.notifier).setMode(
+                value ? ThemeMode.dark : ThemeMode.light,
+              );
             },
           ),
           const Divider(),

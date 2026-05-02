@@ -196,6 +196,14 @@ class FileItineraryCache implements ItineraryCache {
         } catch (_) {}
       }
     } catch (_) {}
+
+    // Also delete legacy file to prevent loadLatest() from returning stale data
+    final legacyFile = await _tryResolveFile();
+    if (legacyFile != null && await legacyFile.exists()) {
+      try {
+        await legacyFile.delete();
+      } catch (_) {}
+    }
   }
 
   @override
