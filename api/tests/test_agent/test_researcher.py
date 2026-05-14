@@ -354,6 +354,46 @@ def test_researcher_declares_iteration_cap_constant() -> None:
     assert MAX_SEARCH_ITERATIONS_PER_TASK == 5
 
 
+class FailingInitSearchTool:
+    """Simulates Tavily tool initialization failure (e.g., missing API key)."""
+
+    def __init__(self) -> None:
+        raise TavilyUnavailableError("Tavily init failed")
+
+
+@pytest.mark.asyncio
+async def test_researcher_handles_tavily_tool_init_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "src.agent.nodes.researcher.TavilySearchTool",
+        FailingInitSearchTool,
+    )
+    state = {
+        "prompt": "trip to Kandy",
+        "destination": "Kandy",
+        "duration_days": 2,
+        "interest_categories": ["culture"],
+        "tasks": [{"name": "Local Research", "query": "best temples"}],
+        "tavily_calls_made": 0,
+        "events": [],
+        "task_results": {"Local Research": [{"title": "should_clear"}]},
+        "error_event": None,
+        "tavily_unavailable": False,
+    }
+
+    result = await researcher_node(state)  # type: ignore[arg-type]
+
+    assert result["tavily_unavailable"] is True
+    assert result["task_results"] == {}
+    thought_log_events = [e for e in result["events"] if e.get("event_type") == "thought_log"]
+    assert thought_log_events
+    assert any(
+        (e.get("data") or {}).get("icon") == "⚠️" for e in thought_log_events
+    )
+    assert all(e.get("event_type") != "error" for e in result["events"])
+
+
 class AlwaysUnavailableSearchTool:
     """Simulates Tavily being completely unreachable — every search raises TavilyUnavailableError."""
 

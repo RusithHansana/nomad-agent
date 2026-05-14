@@ -200,9 +200,27 @@ async def researcher_node(
     if state.get("error_event") is not None:
         return state
 
-    tool = search_tool or TavilySearchTool()
     current_calls = _safe_int(state.get("tavily_calls_made", 0), 0)
     events, event_cursor, event_base_cursor = get_event_buffer(state)
+
+    try:
+        tool = search_tool or TavilySearchTool()
+    except TavilyUnavailableError:
+        events, event_cursor, event_base_cursor = append_event_to_buffer(
+            events=events,
+            event_cursor=event_cursor,
+            event_base_cursor=event_base_cursor,
+            payload=_build_tavily_unavailable_thought_log_event(),
+        )
+        return {
+            **state,
+            "event_cursor": event_cursor,
+            "event_base_cursor": event_base_cursor,
+            "events": events,
+            "task_results": {},
+            "tavily_calls_made": current_calls,
+            "tavily_unavailable": True,
+        }
 
     raw_task_results = state.get("task_results", {})
     task_results = dict(raw_task_results) if isinstance(raw_task_results, dict) else {}

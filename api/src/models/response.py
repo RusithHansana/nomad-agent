@@ -44,5 +44,5 @@ class ItineraryResponse(ModelBase):
     days: list[DayPlan]
     cost_summary: CostSummary
     generated_at: str
-    degraded: bool | None = None
+    degraded: bool | None = False
     degradation_reason: str | None = None
