@@ -164,8 +164,10 @@ class FileItineraryCache implements ItineraryCache {
 
   @override
   Future<bool> deleteItinerary(String id) async {
-    if (id.contains('/') || id.contains(r'\') || id.contains('..'))
+    if (id.contains('/') || id.contains(r'\') || id.contains('..')) {
       return false;
+    }
+
     final dir = await _getItinerariesDir();
     if (dir == null) return false;
 
