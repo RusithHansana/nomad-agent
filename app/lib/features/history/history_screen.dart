@@ -85,7 +85,7 @@ class HistoryScreen extends ConsumerWidget {
   ) {
     return ListView.separated(
       itemCount: itineraries.length,
-      separatorBuilder: (_, __) => const Divider(),
+      separatorBuilder: (_, _) => const Divider(),
       itemBuilder: (context, index) {
         final summary = itineraries[index];
         return _buildListItem(context, ref, summary);
