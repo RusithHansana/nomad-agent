@@ -68,10 +68,7 @@ class FileItineraryCache implements ItineraryCache {
         : now.toIso8601String().split('.').first;
 
     final timestamp =
-        baseTime
-            .replaceAll(RegExp(r'[:\-]'), '')
-            .replaceAll('T', '_')
-            .replaceAll('Z', '') +
+        '${baseTime.replaceAll(RegExp(r'[:\-]'), '').replaceAll('T', '_').replaceAll('Z', '')}'
         '_${now.microsecondsSinceEpoch % 10000}';
 
     final sanitizedDest = _sanitize(itinerary.destination);
