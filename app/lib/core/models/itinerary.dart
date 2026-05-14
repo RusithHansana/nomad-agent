@@ -7,6 +7,8 @@ class Itinerary {
     required this.days,
     required this.costSummary,
     required this.generatedAt,
+    this.isDegraded = false,
+    this.degradationReason,
   });
 
   final String destination;
@@ -14,6 +16,13 @@ class Itinerary {
   final List<DayPlan> days;
   final CostSummary costSummary;
   final String generatedAt;
+
+  /// Whether the itinerary was generated in degraded mode
+  /// (Tavily unavailable, venues are AI-suggested and unverified).
+  final bool isDegraded;
+
+  /// The reason for degradation, e.g. "tavily_unavailable", or null if not degraded.
+  final String? degradationReason;
 
   factory Itinerary.fromJson(Map<String, Object?> json) {
     return Itinerary(
@@ -29,17 +38,26 @@ class Itinerary {
             <String, Object?>{},
       ),
       generatedAt: (json['generated_at'] as String?) ?? '',
+      isDegraded: (json['degraded'] as bool?) ?? false,
+      degradationReason: json['degradation_reason'] as String?,
     );
   }
 
   Map<String, Object?> toJson() {
-    return <String, Object?>{
+    final map = <String, Object?>{
       'destination': destination,
       'duration_days': durationDays,
       'days': days.map((day) => day.toJson()).toList(growable: false),
       'cost_summary': costSummary.toJson(),
       'generated_at': generatedAt,
     };
+    if (isDegraded) {
+      map['degraded'] = isDegraded;
+    }
+    if (degradationReason != null) {
+      map['degradation_reason'] = degradationReason;
+    }
+    return map;
   }
 
   Itinerary copyWith({
@@ -48,6 +66,8 @@ class Itinerary {
     List<DayPlan>? days,
     CostSummary? costSummary,
     String? generatedAt,
+    bool? isDegraded,
+    String? degradationReason,
   }) {
     return Itinerary(
       destination: destination ?? this.destination,
@@ -55,6 +75,8 @@ class Itinerary {
       days: days ?? this.days,
       costSummary: costSummary ?? this.costSummary,
       generatedAt: generatedAt ?? this.generatedAt,
+      isDegraded: isDegraded ?? this.isDegraded,
+      degradationReason: degradationReason ?? this.degradationReason,
     );
   }
 }

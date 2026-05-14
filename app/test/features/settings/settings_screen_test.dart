@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app/features/settings/settings_screen.dart';
-import 'package:app/features/settings/providers/theme_provider.dart';
 import 'package:app/core/storage/itinerary_cache.dart';
 import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/cached_itinerary_summary.dart';
@@ -33,17 +32,15 @@ class MockItineraryCache implements ItineraryCache {
 
 void main() {
   group('SettingsScreen', () {
-    testWidgets('renders dark mode toggle, about section, and clear history', (tester) async {
+    testWidgets('renders dark mode toggle, about section, and clear history', (
+      tester,
+    ) async {
       final mockCache = MockItineraryCache();
-      
+
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            itineraryCacheProvider.overrideWithValue(mockCache),
-          ],
-          child: const MaterialApp(
-            home: SettingsScreen(),
-          ),
+          overrides: [itineraryCacheProvider.overrideWithValue(mockCache)],
+          child: const MaterialApp(home: SettingsScreen()),
         ),
       );
 
@@ -63,15 +60,11 @@ void main() {
 
     testWidgets('toggling dark mode updates provider', (tester) async {
       final mockCache = MockItineraryCache();
-      
+
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            itineraryCacheProvider.overrideWithValue(mockCache),
-          ],
-          child: const MaterialApp(
-            home: SettingsScreen(),
-          ),
+          overrides: [itineraryCacheProvider.overrideWithValue(mockCache)],
+          child: const MaterialApp(home: SettingsScreen()),
         ),
       );
 
@@ -88,15 +81,11 @@ void main() {
 
     testWidgets('clear history cancel does not delete', (tester) async {
       final mockCache = MockItineraryCache();
-      
+
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            itineraryCacheProvider.overrideWithValue(mockCache),
-          ],
-          child: const MaterialApp(
-            home: SettingsScreen(),
-          ),
+          overrides: [itineraryCacheProvider.overrideWithValue(mockCache)],
+          child: const MaterialApp(home: SettingsScreen()),
         ),
       );
 
@@ -104,7 +93,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Clear History?'), findsOneWidget);
-      
+
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
@@ -114,15 +103,11 @@ void main() {
 
     testWidgets('clear history confirm calls clearAll', (tester) async {
       final mockCache = MockItineraryCache();
-      
+
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            itineraryCacheProvider.overrideWithValue(mockCache),
-          ],
-          child: const MaterialApp(
-            home: SettingsScreen(),
-          ),
+          overrides: [itineraryCacheProvider.overrideWithValue(mockCache)],
+          child: const MaterialApp(home: SettingsScreen()),
         ),
       );
 

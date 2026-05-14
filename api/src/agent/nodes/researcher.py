@@ -103,6 +103,19 @@ def _build_tavily_unavailable_event(task_name: str) -> dict[str, object]:
     return event.to_payload()
 
 
+def _build_tavily_unavailable_thought_log_event() -> dict[str, object]:
+    """Build a thought_log degradation warning for full Tavily unavailability."""
+    event = ThoughtLogEvent(
+        timestamp=datetime.now(UTC).isoformat(),
+        data=ThoughtLogData(
+            message="Verification service unavailable — generating unverified suggestions",
+            icon="⚠️",
+            step="researcher",
+        ),
+    )
+    return event.to_payload()
+
+
 def _missing_identifiers_count(results: list[dict[str, object]]) -> int:
     missing_count = 0
     for item in results:
@@ -187,12 +200,31 @@ async def researcher_node(
     if state.get("error_event") is not None:
         return state
 
-    tool = search_tool or TavilySearchTool()
     current_calls = _safe_int(state.get("tavily_calls_made", 0), 0)
     events, event_cursor, event_base_cursor = get_event_buffer(state)
 
+    try:
+        tool = search_tool or TavilySearchTool()
+    except TavilyUnavailableError:
+        events, event_cursor, event_base_cursor = append_event_to_buffer(
+            events=events,
+            event_cursor=event_cursor,
+            event_base_cursor=event_base_cursor,
+            payload=_build_tavily_unavailable_thought_log_event(),
+        )
+        return {
+            **state,
+            "event_cursor": event_cursor,
+            "event_base_cursor": event_base_cursor,
+            "events": events,
+            "task_results": {},
+            "tavily_calls_made": current_calls,
+            "tavily_unavailable": True,
+        }
+
     raw_task_results = state.get("task_results", {})
     task_results = dict(raw_task_results) if isinstance(raw_task_results, dict) else {}
+    tavily_unavailable = False
 
     tasks = state.get("tasks", [])
     task_list = tasks if isinstance(tasks, list) else []
@@ -264,13 +296,23 @@ async def researcher_node(
 
                 if best_results_for_task:
                     best_results_for_task = _mark_results_unverified(best_results_for_task)
-
-                events, event_cursor, event_base_cursor = append_event_to_buffer(
-                    events=events,
-                    event_cursor=event_cursor,
-                    event_base_cursor=event_base_cursor,
-                    payload=_build_tavily_unavailable_event(task_name),
-                )
+                    events, event_cursor, event_base_cursor = append_event_to_buffer(
+                        events=events,
+                        event_cursor=event_cursor,
+                        event_base_cursor=event_base_cursor,
+                        payload=_build_tavily_unavailable_event(task_name),
+                    )
+                else:
+                    # No results at all — Tavily is completely unavailable.
+                    # Emit a thought_log degradation warning (not a terminal error event)
+                    # so downstream nodes know to generate LLM-only suggestions.
+                    tavily_unavailable = True
+                    events, event_cursor, event_base_cursor = append_event_to_buffer(
+                        events=events,
+                        event_cursor=event_cursor,
+                        event_base_cursor=event_base_cursor,
+                        payload=_build_tavily_unavailable_thought_log_event(),
+                    )
                 results_for_task = []
                 break
 
@@ -361,18 +403,22 @@ async def researcher_node(
             current_query = broadened_query
 
         task_results[task_name] = best_results_for_task or results_for_task
-        events, event_cursor, event_base_cursor = append_event_to_buffer(
-            events=events,
-            event_cursor=event_cursor,
-            event_base_cursor=event_base_cursor,
-            payload=ThoughtLogEvent(
-                timestamp=datetime.now(UTC).isoformat(),
-                data=ThoughtLogData(
-                    message=f"Found {len(task_results[task_name])} results for {task_name}",
-                    step="researcher",
-                ),
-            ).to_payload(),
-        )
+        if not tavily_unavailable:
+            events, event_cursor, event_base_cursor = append_event_to_buffer(
+                events=events,
+                event_cursor=event_cursor,
+                event_base_cursor=event_base_cursor,
+                payload=ThoughtLogEvent(
+                    timestamp=datetime.now(UTC).isoformat(),
+                    data=ThoughtLogData(
+                        message=f"Found {len(task_results[task_name])} results for {task_name}",
+                        step="researcher",
+                    ),
+                ).to_payload(),
+            )
+        else:
+            # Tavily completely unavailable — skip all remaining tasks.
+            break
 
     return {
         **state,
@@ -381,4 +427,5 @@ async def researcher_node(
         "events": events,
         "task_results": task_results,
         "tavily_calls_made": current_calls,
+        "tavily_unavailable": tavily_unavailable,
     }

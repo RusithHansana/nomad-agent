@@ -100,6 +100,7 @@ async def stream_itinerary_events(prompt: str) -> AsyncIterator[dict[str, object
         "task_results": {},
         "error_event": None,
         "itinerary_response": None,
+        "tavily_unavailable": False,
     }
 
     # Emit immediately so clients can render activity quickly.

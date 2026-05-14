@@ -2,6 +2,7 @@ import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
+import 'package:app/features/itinerary/widgets/degradation_banner.dart';
 
 import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:app/features/pdf/providers/pdf_export_provider.dart';
@@ -403,6 +404,55 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(exportAttempts, 2);
+    });
+
+    // Task 8.3 — DegradationBanner integration
+    testWidgets('shows DegradationBanner in timeline when itinerary.isDegraded is true', (
+      tester,
+    ) async {
+      final degradedItinerary = _sampleItinerary().copyWith(isDegraded: true);
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: degradedItinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                degradedItinerary.generatedAt: degradedItinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // DegradationBanner must be present in the timeline tab
+      expect(find.byType(DegradationBanner), findsOneWidget);
+      expect(find.text('⚠️'), findsOneWidget);
+    });
+
+    testWidgets('does not show DegradationBanner when itinerary is not degraded', (
+      tester,
+    ) async {
+      // _sampleItinerary() has isDegraded=false by default
+      final itinerary = _sampleItinerary();
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // DegradationBanner must NOT be present
+      expect(find.byType(DegradationBanner), findsNothing);
     });
   });
 }

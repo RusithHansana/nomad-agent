@@ -41,6 +41,7 @@ async def generate_itinerary_response(prompt: str) -> dict[str, object]:
         "task_results": {},
         "error_event": None,
         "itinerary_response": None,
+        "tavily_unavailable": False,
     }
 
     try:
