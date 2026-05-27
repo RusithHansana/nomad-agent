@@ -80,7 +80,11 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
 
     if (isReady) {
       _lastAnnouncementAt = now;
-      SemanticsService.announce(message, Directionality.of(context));
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        message,
+        Directionality.of(context),
+      );
       return;
     }
 
@@ -97,7 +101,11 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
         return;
       }
       _lastAnnouncementAt = DateTime.now();
-      SemanticsService.announce(pending, Directionality.of(context));
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        pending,
+        Directionality.of(context),
+      );
     });
   }
 

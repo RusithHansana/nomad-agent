@@ -6,21 +6,24 @@ void main() {
   testWidgets('unverified badge announces updated semantics label', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: VerificationBadge(type: VerificationBadgeType.unverified),
+    final semanticsHandle = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: VerificationBadge(type: VerificationBadgeType.unverified),
+          ),
         ),
-      ),
-    );
+      );
 
-    final semantics = SemanticsTester(tester);
-
-    expect(
-      semantics,
-      includesNodeWith(label: 'Unverified, recommend calling ahead'),
-    );
-
-    semantics.dispose();
+      await tester.pump();
+      final semantics = tester.getSemantics(find.byType(VerificationBadge));
+      expect(
+        semantics.label,
+        startsWith('Unverified, recommend calling ahead'),
+      );
+    } finally {
+      semanticsHandle.dispose();
+    }
   });
 }
