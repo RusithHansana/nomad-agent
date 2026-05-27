@@ -1,4 +1,5 @@
 import 'package:app/core/constants/app_spacing.dart';
+import 'package:app/core/accessibility/reduced_motion.dart';
 import 'package:app/core/theme/app_colors.dart';
 import 'package:app/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
@@ -19,39 +20,33 @@ class _VerificationBadgeState extends State<VerificationBadge>
     with SingleTickerProviderStateMixin {
   final GlobalKey<TooltipState> _tooltipKey = GlobalKey<TooltipState>();
   late final AnimationController _controller;
-  late final Animation<double> _scale;
+  late Animation<double> _scale;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
     super.initState();
-    final shouldAnimate = widget.type == VerificationBadgeType.verified;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
-      value: shouldAnimate ? 0 : 1,
+      value: 1,
     );
-    if (shouldAnimate) {
-      _scale = TweenSequence<double>([
-        TweenSequenceItem<double>(
-          tween: Tween<double>(
-            begin: 0,
-            end: 1.1,
-          ).chain(CurveTween(curve: Curves.easeOut)),
-          weight: 65,
-        ),
-        TweenSequenceItem<double>(
-          tween: Tween<double>(
-            begin: 1.1,
-            end: 1,
-          ).chain(CurveTween(curve: Curves.easeInOut)),
-          weight: 35,
-        ),
-      ]).animate(_controller);
-      _controller.forward();
-      return;
-    }
-
     _scale = const AlwaysStoppedAnimation<double>(1);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = ReducedMotion.isEnabled(context);
+    _configureAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant VerificationBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      _configureAnimation();
+    }
   }
 
   @override
@@ -116,6 +111,39 @@ class _VerificationBadgeState extends State<VerificationBadge>
     );
   }
 
+  void _configureAnimation() {
+    final shouldAnimate =
+        widget.type == VerificationBadgeType.verified && !_reduceMotion;
+
+    if (!shouldAnimate) {
+      if (_controller.isAnimating) {
+        _controller.stop();
+      }
+      _controller.value = 1;
+      _scale = const AlwaysStoppedAnimation<double>(1);
+      return;
+    }
+
+    _scale = TweenSequence<double>([
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 0,
+          end: 1.1,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 65,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1.1,
+          end: 1,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 35,
+      ),
+    ]).animate(_controller);
+    _controller.value = 0;
+    _controller.forward();
+  }
+
   static _BadgeStyle _styleFor(VerificationBadgeType type) {
     switch (type) {
       case VerificationBadgeType.verified:
@@ -128,7 +156,7 @@ class _VerificationBadgeState extends State<VerificationBadge>
       case VerificationBadgeType.unverified:
         return const _BadgeStyle(
           label: '⚠️ Unverified',
-          semanticLabel: 'Unverified',
+          semanticLabel: 'Unverified, recommend calling ahead',
           foreground: AppColors.warning,
           backgroundAlpha: 0.14,
         );

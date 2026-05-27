@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app/core/constants/app_spacing.dart';
+import 'package:app/core/accessibility/reduced_motion.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/core/theme/app_colors.dart';
 import 'package:app/core/theme/app_typography.dart';
@@ -28,10 +29,31 @@ class VenueTimelineCard extends StatefulWidget {
 class _VenueTimelineCardState extends State<VenueTimelineCard> {
   bool _visible = false;
   Timer? _timer;
+  bool _reduceMotion = false;
+  bool _configured = false;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = ReducedMotion.isEnabled(context);
+    if (_configured && reduceMotion == _reduceMotion) {
+      return;
+    }
+
+    _reduceMotion = reduceMotion;
+    _configured = true;
+    _timer?.cancel();
+
+    if (_reduceMotion) {
+      _visible = true;
+      return;
+    }
+
     _timer = Timer(Duration(milliseconds: widget.index * 50), () {
       if (!mounted) {
         return;
@@ -54,12 +76,168 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
     final textPrimary = colorScheme.onSurface;
     final textSecondary = colorScheme.onSurfaceVariant;
     final primaryColor = colorScheme.primary;
+    final reduceMotion = _reduceMotion;
     final openingHoursText = _openingHoursText(widget.venue.openingHours);
     final statusText = _openingStatus(openingHoursText);
     final badgeType = _badgeType(widget.venue);
     final verificationNote = widget.venue.verificationNote?.trim();
     final hasVerificationNote =
         verificationNote != null && verificationNote.isNotEmpty;
+
+    final content = Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 84,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _timeLabel(widget.venue, widget.index),
+                  style: AppTypography.caption(color: textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    Container(
+                      width: AppSpacing.xs,
+                      height: AppSpacing.xs,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        color: primaryColor.withValues(alpha: 0.25),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (badgeType == VerificationBadgeType.verified)
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xxs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            widget.venue.name,
+                            style: AppTypography.h3(color: textPrimary),
+                          ),
+                          VerificationBadge(
+                            type: VerificationBadgeType.verified,
+                            sourceUrl: widget.venue.sourceUrl,
+                          ),
+                        ],
+                      )
+                    else ...[
+                      Text(
+                        widget.venue.name,
+                        style: AppTypography.h3(color: textPrimary),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      VerificationBadge(
+                        type: badgeType,
+                        sourceUrl: widget.venue.sourceUrl,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      widget.venue.address,
+                      style: AppTypography.bodySmall(color: textSecondary),
+                    ),
+                    if (badgeType != VerificationBadgeType.verified &&
+                        hasVerificationNote)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                        child: Text(
+                          verificationNote,
+                          style: AppTypography.bodySmall(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    if (openingHoursText != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        openingHoursText,
+                        style: AppTypography.bodySmall(color: textSecondary),
+                      ),
+                      if (statusText != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                          child: Text(
+                            statusText,
+                            style: AppTypography.bodySmall(
+                              color: statusText == 'Open now'
+                                  ? AppColors.success
+                                  : AppColors.error,
+                            ),
+                          ),
+                        ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        if (widget.venue.rating != null)
+                          Text(
+                            '★ ${widget.venue.rating!.toStringAsFixed(1)}',
+                            style: AppTypography.bodySmall(color: textPrimary),
+                          ),
+                        if (widget.venue.venueType != null)
+                          VenueTypeLabel(
+                            type: widget.venue.venueType!,
+                            color: textPrimary,
+                          ),
+                        if (_costText(widget.venue) != null)
+                          Text(
+                            _costText(widget.venue)!,
+                            style: AppTypography.bodySmall(color: textPrimary),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Semantics(
+                      button: true,
+                      label: 'View source',
+                      child: InkWell(
+                        onTap: () => widget.onViewSource(widget.venue),
+                        child: Text(
+                          'View source →',
+                          style: AppTypography.bodySmall(color: primaryColor),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (reduceMotion) {
+      return content;
+    }
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 260),
@@ -69,160 +247,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
         duration: const Duration(milliseconds: 260),
         curve: Curves.easeOut,
         offset: _visible ? Offset.zero : const Offset(0, 0.08),
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 84,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _timeLabel(widget.venue, widget.index),
-                      style: AppTypography.caption(color: textSecondary),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        Container(
-                          width: AppSpacing.xs,
-                          height: AppSpacing.xs,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: primaryColor.withValues(alpha: 0.25),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (badgeType == VerificationBadgeType.verified)
-                          Wrap(
-                            spacing: AppSpacing.xs,
-                            runSpacing: AppSpacing.xxs,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                widget.venue.name,
-                                style: AppTypography.h3(color: textPrimary),
-                              ),
-                              VerificationBadge(
-                                type: VerificationBadgeType.verified,
-                                sourceUrl: widget.venue.sourceUrl,
-                              ),
-                            ],
-                          )
-                        else ...[
-                          Text(
-                            widget.venue.name,
-                            style: AppTypography.h3(color: textPrimary),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          VerificationBadge(
-                            type: badgeType,
-                            sourceUrl: widget.venue.sourceUrl,
-                          ),
-                        ],
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          widget.venue.address,
-                          style: AppTypography.bodySmall(color: textSecondary),
-                        ),
-                        if (badgeType != VerificationBadgeType.verified &&
-                            hasVerificationNote)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                            child: Text(
-                              verificationNote,
-                              style: AppTypography.bodySmall(
-                                color: AppColors.warning,
-                              ),
-                            ),
-                          ),
-                        if (openingHoursText != null) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            openingHoursText,
-                            style: AppTypography.bodySmall(
-                              color: textSecondary,
-                            ),
-                          ),
-                          if (statusText != null)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: AppSpacing.xxs,
-                              ),
-                              child: Text(
-                                statusText,
-                                style: AppTypography.bodySmall(
-                                  color: statusText == 'Open now'
-                                      ? AppColors.success
-                                      : AppColors.error,
-                                ),
-                              ),
-                            ),
-                        ],
-                        const SizedBox(height: AppSpacing.sm),
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.xs,
-                          children: [
-                            if (widget.venue.rating != null)
-                              Text(
-                                '★ ${widget.venue.rating!.toStringAsFixed(1)}',
-                                style: AppTypography.bodySmall(
-                                  color: textPrimary,
-                                ),
-                              ),
-                            if (widget.venue.venueType != null)
-                              VenueTypeLabel(
-                                type: widget.venue.venueType!,
-                                color: textPrimary,
-                              ),
-                            if (_costText(widget.venue) != null)
-                              Text(
-                                _costText(widget.venue)!,
-                                style: AppTypography.bodySmall(
-                                  color: textPrimary,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        InkWell(
-                          onTap: () => widget.onViewSource(widget.venue),
-                          child: Text(
-                            'View source →',
-                            style: AppTypography.bodySmall(color: primaryColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: content,
       ),
     );
   }

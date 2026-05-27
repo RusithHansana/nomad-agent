@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/accessibility/reduced_motion.dart';
 import '../../core/router/app_router.dart';
 import '../../core/constants/app_spacing.dart';
 import 'providers/generation_provider.dart';
@@ -22,6 +26,12 @@ class GenerationScreen extends ConsumerStatefulWidget {
 
 class _GenerationScreenState extends ConsumerState<GenerationScreen> {
   late final ScrollController _scrollController;
+  static const Duration _announcementCooldown = Duration(milliseconds: 900);
+
+  bool _reduceMotion = false;
+  DateTime? _lastAnnouncementAt;
+  String? _pendingAnnouncement;
+  Timer? _announcementTimer;
 
   @override
   void initState() {
@@ -30,8 +40,15 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = ReducedMotion.isEnabled(context);
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
+    _announcementTimer?.cancel();
     super.dispose();
   }
 
@@ -39,11 +56,57 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
     if (!_scrollController.hasClients) {
       return;
     }
+    if (_reduceMotion) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      return;
+    }
     _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  void _announceThoughtLogEntry(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final lastAnnouncementAt = _lastAnnouncementAt;
+    final isReady =
+        lastAnnouncementAt == null ||
+        now.difference(lastAnnouncementAt) >= _announcementCooldown;
+
+    if (isReady) {
+      _lastAnnouncementAt = now;
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        message,
+        Directionality.of(context),
+      );
+      return;
+    }
+
+    _pendingAnnouncement = message;
+    _announcementTimer?.cancel();
+    final delay = _announcementCooldown - now.difference(lastAnnouncementAt);
+    _announcementTimer = Timer(delay, () {
+      if (!mounted) {
+        return;
+      }
+      final pending = _pendingAnnouncement;
+      _pendingAnnouncement = null;
+      if (pending == null) {
+        return;
+      }
+      _lastAnnouncementAt = DateTime.now();
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        pending,
+        Directionality.of(context),
+      );
+    });
   }
 
   @override
@@ -55,10 +118,18 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
     final shouldShowOnboarding = hasPrompt
         ? ref.watch(onboardingOverlayControllerProvider).valueOrNull ?? false
         : false;
+    final animationDuration = _reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 250);
 
     ref.listen(generationControllerProvider(widget.prompt), (previous, next) {
       final previousLength = previous?.entries.length ?? 0;
       if (next.entries.length > previousLength) {
+        final shouldAnnounce =
+            next.phase != GenerationPhase.complete || next.itineraryId == null;
+        if (shouldAnnounce && next.entries.isNotEmpty) {
+          _announceThoughtLogEntry(next.entries.last.message);
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) {
             return;
@@ -106,13 +177,13 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
                     },
                   ),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
+                    duration: animationDuration,
                     child: generationState.showColdStartOverlay
                         ? const ColdStartOverlay(key: ValueKey('cold-start'))
                         : const SizedBox.shrink(key: ValueKey('no-overlay')),
                   ),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
+                    duration: animationDuration,
                     child: shouldShowOnboarding
                         ? OnboardingOverlay(
                             key: const ValueKey('onboarding-layer'),
