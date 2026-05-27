@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/accessibility/reduced_motion.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -25,6 +26,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
   ];
 
   late final AnimationController _controller;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
@@ -36,6 +38,17 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = ReducedMotion.isEnabled(context);
+    if (_reduceMotion && _controller.isAnimating) {
+      _controller.stop();
+    } else if (!_reduceMotion && !_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -43,6 +56,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = ReducedMotion.isEnabled(context);
     final overlayColor = Theme.of(
       context,
     ).scaffoldBackgroundColor.withValues(alpha: 0.94);
@@ -54,50 +68,57 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
 
-    return GestureDetector(
-      key: const ValueKey('onboarding-dismiss-surface'),
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onDismiss,
-      child: ColoredBox(
-        color: overlayColor,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Container(
-                key: const ValueKey('onboarding-overlay'),
-                decoration: BoxDecoration(
-                  color: panelColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'NomadAgent researches in real time. Watch the Thought Log to see every step.',
-                      style: AppTypography.body(color: textColor),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _StreamingPreview(controller: _controller),
-                    const SizedBox(height: AppSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Semantics(
-                        label: 'Dismiss onboarding overlay',
-                        button: true,
-                        child: ElevatedButton(
-                          onPressed: widget.onDismiss,
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(0, 48),
+    return Semantics(
+      label: 'Dismiss onboarding overlay',
+      button: true,
+      child: GestureDetector(
+        key: const ValueKey('onboarding-dismiss-surface'),
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onDismiss,
+        child: ColoredBox(
+          color: overlayColor,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Container(
+                  key: const ValueKey('onboarding-overlay'),
+                  decoration: BoxDecoration(
+                    color: panelColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'NomadAgent researches in real time. Watch the Thought Log to see every step.',
+                        style: AppTypography.body(color: textColor),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _StreamingPreview(
+                        controller: _controller,
+                        reduceMotion: reduceMotion,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Semantics(
+                          label: 'Dismiss onboarding overlay',
+                          button: true,
+                          child: ElevatedButton(
+                            onPressed: widget.onDismiss,
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(0, 48),
+                            ),
+                            child: const Text('Got it'),
                           ),
-                          child: const Text('Got it'),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -109,9 +130,13 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 }
 
 class _StreamingPreview extends StatelessWidget {
-  const _StreamingPreview({required this.controller});
+  const _StreamingPreview({
+    required this.controller,
+    required this.reduceMotion,
+  });
 
   final Animation<double> controller;
+  final bool reduceMotion;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +144,26 @@ class _StreamingPreview extends StatelessWidget {
     final borderColor = isDark
         ? AppColors.darkTextSecondary.withValues(alpha: 0.35)
         : AppColors.textSecondary.withValues(alpha: 0.35);
+
+    if (reduceMotion) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          children: [
+            for (final line in _OnboardingOverlayState._previewLines)
+              entry_widget.ThoughtLogEntry(
+                icon: line.icon,
+                message: line.message,
+              ),
+          ],
+        ),
+      );
+    }
 
     return AnimatedBuilder(
       animation: controller,

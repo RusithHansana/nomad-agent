@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/accessibility/reduced_motion.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -32,37 +33,44 @@ class _ThoughtLogEntryState extends State<ThoughtLogEntry> {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = ReducedMotion.isEnabled(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
 
-    return AnimatedSlide(
-      offset: _visible ? Offset.zero : const Offset(-0.08, 0),
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOutCubic,
-      child: AnimatedOpacity(
-        opacity: _visible ? 1 : 0,
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.icon, style: AppTypography.thoughtLog(color: textColor)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              widget.message,
+              style: AppTypography.thoughtLog(color: textColor),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (reduceMotion) {
+      return Semantics(container: true, child: content);
+    }
+
+    return Semantics(
+      container: true,
+      child: AnimatedSlide(
+        offset: _visible ? Offset.zero : const Offset(-0.08, 0),
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutCubic,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.icon,
-                style: AppTypography.thoughtLog(color: textColor),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  widget.message,
-                  style: AppTypography.thoughtLog(color: textColor),
-                ),
-              ),
-            ],
-          ),
+        child: AnimatedOpacity(
+          opacity: _visible ? 1 : 0,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          child: content,
         ),
       ),
     );

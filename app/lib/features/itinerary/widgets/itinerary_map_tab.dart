@@ -6,6 +6,7 @@ import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/venue.dart';
 import 'package:app/core/theme/app_colors.dart';
 import 'package:app/core/theme/app_typography.dart';
+import 'package:app/core/accessibility/reduced_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -45,6 +46,7 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
   bool _hasFittedCamera = false;
   bool _showRoutes = false;
   bool _hasCapturedSnapshot = false;
+  bool _reduceMotion = false;
   Timer? _routeRevealTimer;
   Timer? _snapshotTimer;
 
@@ -83,6 +85,27 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = ReducedMotion.isEnabled(context);
+    if (reduceMotion == _reduceMotion) {
+      return;
+    }
+    _reduceMotion = reduceMotion;
+    if (_reduceMotion) {
+      _routeRevealTimer?.cancel();
+      if (!_showRoutes && mounted) {
+        setState(() {
+          _showRoutes = true;
+        });
+      }
+      return;
+    }
+    _showRoutes = false;
+    _scheduleRouteReveal();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final validPoints = _orderedVenues
         .where(
@@ -94,6 +117,9 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
     final routePolylines = _showRoutes
         ? _buildRoutePolylines()
         : const <Polyline>[];
+    final routeFadeDuration = _reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
 
     return Stack(
       children: [
@@ -118,7 +144,7 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
                   key: const ValueKey<String>('map-route-layer'),
                   child: TweenAnimationBuilder<double>(
                     tween: _routeFadeTween,
-                    duration: const Duration(milliseconds: 280),
+                    duration: routeFadeDuration,
                     curve: Curves.easeOut,
                     builder: (context, opacity, child) {
                       return Opacity(opacity: opacity, child: child);
@@ -136,21 +162,33 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
                       item.venue.longitude,
                     ))
                       Marker(
-                        width: 40,
-                        height: 40,
+                        width: 48,
+                        height: 48,
                         point: LatLng(
                           item.venue.latitude,
                           item.venue.longitude,
                         ),
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => _showVenueDetailSheet(item.venue),
-                          child: MapVenuePin(
-                            key: ValueKey<String>('map-pin-${item.order}'),
-                            number: item.order,
-                            isVerified: item.venue.isVerified,
-                            index: item.order - 1,
-                            venueType: item.venue.venueType,
+                        child: Semantics(
+                          label: _mapPinSemanticsLabel(item),
+                          button: true,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _showVenueDetailSheet(item.venue),
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Center(
+                                child: MapVenuePin(
+                                  key: ValueKey<String>(
+                                    'map-pin-${item.order}',
+                                  ),
+                                  number: item.order,
+                                  isVerified: item.venue.isVerified,
+                                  index: item.order - 1,
+                                  venueType: item.venue.venueType,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -224,6 +262,15 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
   void _scheduleRouteReveal() {
     _routeRevealTimer?.cancel();
 
+    if (_reduceMotion) {
+      if (!_showRoutes) {
+        setState(() {
+          _showRoutes = true;
+        });
+      }
+      return;
+    }
+
     final validPinIndexes = _orderedVenues
         .where(
           (item) =>
@@ -254,6 +301,26 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
         _showRoutes = true;
       });
     });
+  }
+
+  String _mapPinSemanticsLabel(_OrderedVenue item) {
+    final venue = item.venue;
+    final verificationLabel = venue.isVerified ? 'verified' : 'unverified';
+    final openingLabel = _openingLabel(venue.openingHours);
+    return 'Venue ${item.order}: ${venue.name}, $verificationLabel, $openingLabel';
+  }
+
+  static String _openingLabel(List<String>? openingHours) {
+    if (openingHours == null || openingHours.isEmpty) {
+      return 'opens unknown';
+    }
+    final firstLine = openingHours
+        .map((line) => line.trim())
+        .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+    if (firstLine.isEmpty) {
+      return 'opens unknown';
+    }
+    return 'opens $firstLine';
   }
 
   void _scheduleSnapshotCapture() {
