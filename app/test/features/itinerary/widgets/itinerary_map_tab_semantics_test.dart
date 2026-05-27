@@ -45,7 +45,7 @@ void main() {
       final label =
           'Venue 1: Tea House, verified, opens Open daily 09:00-21:00';
       final semanticsFinder = find.byWidgetPredicate(
-        (widget) => widget is Semantics && widget.properties?.label == label,
+        (widget) => widget is Semantics && widget.properties.label == label,
       );
       expect(semanticsFinder, findsOneWidget);
     } finally {
