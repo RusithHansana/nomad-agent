@@ -251,14 +251,14 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
                           ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ],
       ),
-    );
     );
 
     if (reduceMotion) {
