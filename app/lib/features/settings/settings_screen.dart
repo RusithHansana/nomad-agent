@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app/features/settings/providers/theme_provider.dart';
 import 'package:app/core/storage/itinerary_cache.dart';
+import 'package:app/core/constants/app_spacing.dart';
 
 /// Settings screen providing Dark Mode toggle, About info, and Clear History.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _showClearHistoryDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _showClearHistoryDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     // Capture cache reference before the async gap to avoid using ref after
     // the widget may have been unmounted.
     final cache = ref.read(itineraryCacheProvider);
@@ -54,44 +58,53 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        children: [
-          SwitchListTile(
-            secondary: const Icon(Icons.dark_mode_outlined),
-            title: const Text('Dark Mode'),
-            subtitle: const Text('Toggle between light and dark themes'),
-            value: themeMode == ThemeMode.dark,
-            onChanged: (value) {
-              ref.read(themeModeProvider.notifier).setMode(
-                value ? ThemeMode.dark : ThemeMode.light,
-              );
-            },
-          ),
-          const Divider(),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('App version'),
-            subtitle: Text('0.1.0'),
-          ),
-          const ListTile(
-            leading: Icon(Icons.code),
-            title: Text('Credits'),
-            subtitle: Text('Built with Flutter & AI'),
-          ),
-          const Divider(),
-          ListTile(
-            leading: Icon(
-              Icons.delete_outline,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            title: Text(
-              'Clear History',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-            subtitle: const Text('Delete all saved itineraries'),
-            onTap: () => _showClearHistoryDialog(context, ref),
-          ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontalPadding = constraints.maxWidth >= 600
+              ? AppSpacing.xxl
+              : 0.0;
+
+          return ListView(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Dark Mode'),
+                subtitle: const Text('Toggle between light and dark themes'),
+                value: themeMode == ThemeMode.dark,
+                onChanged: (value) {
+                  ref
+                      .read(themeModeProvider.notifier)
+                      .setMode(value ? ThemeMode.dark : ThemeMode.light);
+                },
+              ),
+              const Divider(),
+              const ListTile(
+                leading: Icon(Icons.info_outline),
+                title: Text('App version'),
+                subtitle: Text('0.1.0'),
+              ),
+              const ListTile(
+                leading: Icon(Icons.code),
+                title: Text('Credits'),
+                subtitle: Text('Built with Flutter & AI'),
+              ),
+              const Divider(),
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Clear History',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                subtitle: const Text('Delete all saved itineraries'),
+                onTap: () => _showClearHistoryDialog(context, ref),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

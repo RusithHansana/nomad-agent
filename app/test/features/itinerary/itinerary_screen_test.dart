@@ -3,6 +3,8 @@ import 'package:app/core/models/venue.dart';
 import 'package:app/features/itinerary/itinerary_screen.dart';
 import 'package:app/features/itinerary/providers/itinerary_store_provider.dart';
 import 'package:app/features/itinerary/widgets/degradation_banner.dart';
+import 'package:app/features/itinerary/widgets/itinerary_map_tab.dart';
+import 'package:app/features/itinerary/widgets/map_venue_pin.dart';
 
 import 'package:app/features/pdf/pdf_generator.dart';
 import 'package:app/features/pdf/providers/pdf_export_provider.dart';
@@ -105,6 +107,102 @@ void main() {
       expect(find.text('Open daily 09:00-21:00'), findsOneWidget);
       expect(find.text('★ 4.6'), findsOneWidget);
       expect(find.text('✅ Verified'), findsOneWidget);
+    });
+
+    testWidgets('uses split view at tablet width', (tester) async {
+      final itinerary = _sampleItinerary();
+
+      await tester.binding.setSurfaceSize(const Size(960, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TabBar), findsNothing);
+      expect(find.byType(ItineraryMapTab), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('itinerary-timeline-list')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('selecting a timeline venue highlights the map pin', (
+      tester,
+    ) async {
+      final itinerary = _sampleItinerary();
+
+      await tester.binding.setSurfaceSize(const Size(960, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Tea House'));
+      await tester.pump();
+
+      final pin = tester.widget<MapVenuePin>(
+        find.byKey(const ValueKey<String>('map-pin-1')),
+      );
+      expect(pin.isSelected, isTrue);
+    });
+
+    testWidgets('tapping a map pin scrolls the timeline to the venue', (
+      tester,
+    ) async {
+      final itinerary = _longItinerary(14);
+
+      await tester.binding.setSurfaceSize(const Size(960, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _buildHarness(
+          id: itinerary.generatedAt,
+          overrides: [
+            itineraryStoreProvider.overrideWith(
+              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                itinerary.generatedAt: itinerary,
+              }),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollableFinder = find.descendant(
+        of: find.byKey(const ValueKey<String>('itinerary-timeline-list')),
+        matching: find.byType(Scrollable),
+      );
+      final scrollable = tester.state<ScrollableState>(scrollableFinder);
+      final initialOffset = scrollable.position.pixels;
+
+      await tester.tap(find.byKey(const ValueKey<String>('map-pin-14')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      final updatedOffset = scrollable.position.pixels;
+      expect(updatedOffset, greaterThan(initialOffset));
     });
 
     testWidgets('reveals map route polylines after delayed pin landing', (
@@ -407,53 +505,55 @@ void main() {
     });
 
     // Task 8.3 — DegradationBanner integration
-    testWidgets('shows DegradationBanner in timeline when itinerary.isDegraded is true', (
-      tester,
-    ) async {
-      final degradedItinerary = _sampleItinerary().copyWith(isDegraded: true);
+    testWidgets(
+      'shows DegradationBanner in timeline when itinerary.isDegraded is true',
+      (tester) async {
+        final degradedItinerary = _sampleItinerary().copyWith(isDegraded: true);
 
-      await tester.pumpWidget(
-        _buildHarness(
-          id: degradedItinerary.generatedAt,
-          overrides: [
-            itineraryStoreProvider.overrideWith(
-              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
-                degradedItinerary.generatedAt: degradedItinerary,
-              }),
-            ),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _buildHarness(
+            id: degradedItinerary.generatedAt,
+            overrides: [
+              itineraryStoreProvider.overrideWith(
+                () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                  degradedItinerary.generatedAt: degradedItinerary,
+                }),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // DegradationBanner must be present in the timeline tab
-      expect(find.byType(DegradationBanner), findsOneWidget);
-      expect(find.text('⚠️'), findsOneWidget);
-    });
+        // DegradationBanner must be present in the timeline tab
+        expect(find.byType(DegradationBanner), findsOneWidget);
+        expect(find.text('⚠️'), findsOneWidget);
+      },
+    );
 
-    testWidgets('does not show DegradationBanner when itinerary is not degraded', (
-      tester,
-    ) async {
-      // _sampleItinerary() has isDegraded=false by default
-      final itinerary = _sampleItinerary();
+    testWidgets(
+      'does not show DegradationBanner when itinerary is not degraded',
+      (tester) async {
+        // _sampleItinerary() has isDegraded=false by default
+        final itinerary = _sampleItinerary();
 
-      await tester.pumpWidget(
-        _buildHarness(
-          id: itinerary.generatedAt,
-          overrides: [
-            itineraryStoreProvider.overrideWith(
-              () => _FakeItineraryStoreNotifier(<String, Itinerary>{
-                itinerary.generatedAt: itinerary,
-              }),
-            ),
-          ],
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _buildHarness(
+            id: itinerary.generatedAt,
+            overrides: [
+              itineraryStoreProvider.overrideWith(
+                () => _FakeItineraryStoreNotifier(<String, Itinerary>{
+                  itinerary.generatedAt: itinerary,
+                }),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // DegradationBanner must NOT be present
-      expect(find.byType(DegradationBanner), findsNothing);
-    });
+        // DegradationBanner must NOT be present
+        expect(find.byType(DegradationBanner), findsNothing);
+      },
+    );
   });
 }
 
@@ -524,6 +624,42 @@ Itinerary _sampleItinerary() {
             verificationNote: 'Limited online signal, verify opening hours.',
           ),
         ],
+      ),
+    ],
+    costSummary: const CostSummary(
+      food: 40,
+      entertainment: 25,
+      transport: 20,
+      total: 85,
+    ),
+    generatedAt: '2026-04-19T12:00:00Z',
+  );
+}
+
+Itinerary _longItinerary(int venueCount) {
+  final venues = List.generate(
+    venueCount,
+    (index) => Venue(
+      name: 'Venue ${index + 1}',
+      address: '${index + 1} River Lane',
+      latitude: 35.0 + (index * 0.01),
+      longitude: 135.0 + (index * 0.01),
+      openingHours: const ['Open daily 09:00-21:00'],
+      rating: 4.2,
+      sourceUrl: 'https://example.com/venue-${index + 1}',
+      isVerified: true,
+    ),
+  );
+
+  return Itinerary(
+    destination: 'Kyoto',
+    durationDays: 1,
+    days: [
+      DayPlan(
+        dayNumber: 1,
+        date: '2026-04-05',
+        estimatedDayCost: 85,
+        venues: venues,
       ),
     ],
     costSummary: const CostSummary(

@@ -20,7 +20,7 @@ import 'widgets/itinerary_map_tab.dart';
 import 'widgets/venue_timeline_card.dart';
 
 /// Placeholder screen for viewing a single itinerary.
-class ItineraryScreen extends ConsumerWidget {
+class ItineraryScreen extends ConsumerStatefulWidget {
   const ItineraryScreen({
     super.key,
     required this.id,
@@ -32,9 +32,57 @@ class ItineraryScreen extends ConsumerWidget {
   final bool showMapTiles;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ItineraryScreen> createState() => _ItineraryScreenState();
+}
+
+class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
+  final ScrollController _timelineController = ScrollController();
+  List<GlobalKey> _venueKeys = <GlobalKey>[];
+  int? _selectedVenueIndex;
+
+  @override
+  void dispose() {
+    _timelineController.dispose();
+    super.dispose();
+  }
+
+  void _ensureVenueKeys(int count) {
+    if (_venueKeys.length == count) {
+      return;
+    }
+    _venueKeys = List<GlobalKey>.generate(count, (_) => GlobalKey());
+  }
+
+  void _handleVenueSelected(int index, {required bool isSplitView}) {
+    if (index < 0 || index >= _venueKeys.length) {
+      return;
+    }
+
+    setState(() {
+      _selectedVenueIndex = index;
+    });
+
+    if (!isSplitView) {
+      return;
+    }
+
+    final targetContext = _venueKeys[index].currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      alignment: 0.1,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final itinerary = ref.watch(
-      itineraryStoreProvider.select((store) => store[id]),
+      itineraryStoreProvider.select((store) => store[widget.id]),
     );
 
     ref.listen<PdfExportState>(pdfExportControllerProvider, (previous, next) {
@@ -125,17 +173,57 @@ class ItineraryScreen extends ConsumerWidget {
     }
 
     final launcher = ref.read(sourceUrlLauncherProvider);
+    final venueCount = itinerary.days.fold<int>(
+      0,
+      (total, day) => total + day.venues.length,
+    );
+    _ensureVenueKeys(venueCount);
 
-    return PopScope(
-      canPop: canPop,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          _navigateToHome(context);
-        }
-      },
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSplitView = constraints.maxWidth >= 840;
+        final horizontalPadding = constraints.maxWidth >= 600
+            ? AppSpacing.xxl
+            : AppSpacing.md;
+        final timelinePadding = EdgeInsets.fromLTRB(
+          horizontalPadding,
+          AppSpacing.md,
+          horizontalPadding,
+          AppSpacing.md,
+        );
+
+        final timeline = _TimelineTab(
+          itinerary: itinerary,
+          launcher: launcher,
+          scrollController: _timelineController,
+          venueKeys: _venueKeys,
+          selectedVenueIndex: _selectedVenueIndex,
+          onVenueSelected: (index) {
+            _handleVenueSelected(index, isSplitView: isSplitView);
+          },
+          padding: timelinePadding,
+        );
+
+        final mapTab = ItineraryMapTab(
+          itinerary: itinerary,
+          showTiles: widget.showMapTiles,
+          selectedVenueIndex: _selectedVenueIndex,
+          onVenueSelected: (index) {
+            _handleVenueSelected(index, isSplitView: isSplitView);
+          },
+        );
+
+        final body = isSplitView
+            ? Row(
+                children: [
+                  Expanded(child: timeline),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(child: mapTab),
+                ],
+              )
+            : TabBarView(children: [timeline, mapTab]);
+
+        final scaffold = Scaffold(
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -144,24 +232,21 @@ class ItineraryScreen extends ConsumerWidget {
               },
             ),
             title: Text(itinerary.destination),
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Timeline'),
-                Tab(text: 'Map'),
-              ],
-            ),
+            bottom: isSplitView
+                ? null
+                : const TabBar(
+                    tabs: [
+                      Tab(text: 'Timeline'),
+                      Tab(text: 'Map'),
+                    ],
+                  ),
           ),
-          body: TabBarView(
-            children: [
-              _TimelineTab(itinerary: itinerary, launcher: launcher),
-              ItineraryMapTab(itinerary: itinerary, showTiles: showMapTiles),
-            ],
-          ),
+          body: body,
           bottomNavigationBar: SafeArea(
-            minimum: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
+            minimum: EdgeInsets.fromLTRB(
+              horizontalPadding,
               AppSpacing.sm,
-              AppSpacing.md,
+              horizontalPadding,
               AppSpacing.md,
             ),
             child: Column(
@@ -202,26 +287,53 @@ class ItineraryScreen extends ConsumerWidget {
               ],
             ),
           ),
-        ),
-      ),
+        );
+
+        return PopScope(
+          canPop: canPop,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              _navigateToHome(context);
+            }
+          },
+          child: isSplitView
+              ? scaffold
+              : DefaultTabController(length: 2, child: scaffold),
+        );
+      },
     );
   }
 }
 
 class _TimelineTab extends StatelessWidget {
-  const _TimelineTab({required this.itinerary, required this.launcher});
+  const _TimelineTab({
+    required this.itinerary,
+    required this.launcher,
+    required this.scrollController,
+    required this.venueKeys,
+    required this.selectedVenueIndex,
+    required this.onVenueSelected,
+    required this.padding,
+  });
 
   final Itinerary itinerary;
   final SourceUrlLauncher launcher;
+  final ScrollController scrollController;
+  final List<GlobalKey> venueKeys;
+  final int? selectedVenueIndex;
+  final ValueChanged<int> onVenueSelected;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
     final showBanner = itinerary.isDegraded;
+    final venueOffsets = _buildVenueOffsets(itinerary);
     // Extra item count: +1 for cost summary, +1 for banner (when degraded)
     final extraItems = showBanner ? 2 : 1;
     return ListView.builder(
       key: const ValueKey<String>('itinerary-timeline-list'),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      controller: scrollController,
+      padding: padding,
       itemCount: itinerary.days.length + extraItems,
       itemBuilder: (context, index) {
         // Degradation banner is the very first item
@@ -240,6 +352,7 @@ class _TimelineTab extends StatelessWidget {
         }
 
         final day = itinerary.days[dayIndex];
+        final venueOffset = venueOffsets[dayIndex];
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.lg),
           child: Column(
@@ -252,41 +365,52 @@ class _TimelineTab extends StatelessWidget {
                 venueIndex < day.venues.length;
                 venueIndex++
               )
-                VenueTimelineCard(
-                  key: ValueKey<String>(
-                    '${day.dayNumber}-${day.venues[venueIndex].name}-$venueIndex',
-                  ),
-                  venue: day.venues[venueIndex],
-                  index: venueIndex,
-                  onViewSource: (venue) async {
-                    final sourceUrl = venue.sourceUrl;
-                    if (sourceUrl == null || sourceUrl.trim().isEmpty) {
-                      return;
-                    }
-
-                    try {
-                      final launched = await launcher(sourceUrl);
-                      if (!launched && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Unable to open source link right now.',
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (_) {
-                      if (!context.mounted) {
-                        return;
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Unable to open source link right now.',
-                          ),
+                Builder(
+                  builder: (context) {
+                    final globalIndex = venueOffset + venueIndex;
+                    return KeyedSubtree(
+                      key: venueKeys[globalIndex],
+                      child: VenueTimelineCard(
+                        key: ValueKey<String>(
+                          '${day.dayNumber}-${day.venues[venueIndex].name}-$venueIndex',
                         ),
-                      );
-                    }
+                        venue: day.venues[venueIndex],
+                        index: globalIndex,
+                        displayIndex: venueIndex,
+                        isSelected: selectedVenueIndex == globalIndex,
+                        onSelected: () => onVenueSelected(globalIndex),
+                        onViewSource: (venue) async {
+                          final sourceUrl = venue.sourceUrl;
+                          if (sourceUrl == null || sourceUrl.trim().isEmpty) {
+                            return;
+                          }
+
+                          try {
+                            final launched = await launcher(sourceUrl);
+                            if (!launched && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Unable to open source link right now.',
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (_) {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Unable to open source link right now.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    );
                   },
                 ),
             ],
@@ -294,6 +418,16 @@ class _TimelineTab extends StatelessWidget {
         );
       },
     );
+  }
+
+  static List<int> _buildVenueOffsets(Itinerary itinerary) {
+    final offsets = <int>[];
+    var running = 0;
+    for (final day in itinerary.days) {
+      offsets.add(running);
+      running += day.venues.length;
+    }
+    return offsets;
   }
 }
 

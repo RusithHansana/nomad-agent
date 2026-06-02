@@ -23,10 +23,14 @@ class ItineraryMapTab extends ConsumerStatefulWidget {
     super.key,
     required this.itinerary,
     this.showTiles = true,
+    this.selectedVenueIndex,
+    this.onVenueSelected,
   });
 
   final Itinerary itinerary;
   final bool showTiles;
+  final int? selectedVenueIndex;
+  final ValueChanged<int>? onVenueSelected;
 
   @override
   ConsumerState<ItineraryMapTab> createState() => _ItineraryMapTabState();
@@ -173,7 +177,10 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
                           button: true,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => _showVenueDetailSheet(item.venue),
+                            onTap: () {
+                              widget.onVenueSelected?.call(item.order - 1);
+                              _showVenueDetailSheet(item.venue);
+                            },
                             child: SizedBox(
                               width: 48,
                               height: 48,
@@ -185,6 +192,9 @@ class _ItineraryMapTabState extends ConsumerState<ItineraryMapTab> {
                                   number: item.order,
                                   isVerified: item.venue.isVerified,
                                   index: item.order - 1,
+                                  isSelected:
+                                      widget.selectedVenueIndex ==
+                                      item.order - 1,
                                   venueType: item.venue.venueType,
                                 ),
                               ),

@@ -56,5 +56,33 @@ void main() {
 
       expect(decoration.color, AppColors.warning);
     });
+
+    testWidgets('selected pin uses thicker border', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MapVenuePin(
+              number: 2,
+              isVerified: true,
+              index: 0,
+              isSelected: true,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      final containerFinder = find.ancestor(
+        of: find.text('2'),
+        matching: find.byType(Container),
+      );
+      final container = tester.widget<Container>(containerFinder.first);
+      final decoration = container.decoration as BoxDecoration;
+      final border = decoration.border as Border;
+
+      expect(border.top.width, 3);
+    });
   });
 }

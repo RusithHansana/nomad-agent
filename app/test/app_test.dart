@@ -15,12 +15,18 @@ import 'package:app/core/models/itinerary.dart';
 import 'package:app/core/models/cached_itinerary_summary.dart';
 
 class MockItineraryCache implements ItineraryCache {
-  @override Future<void> clearAll() async {}
-  @override Future<bool> deleteItinerary(String id) async => true;
-  @override Future<List<CachedItinerarySummary>> listItineraries() async => [];
-  @override Future<Itinerary?> loadItinerary(String id) async => null;
-  @override Future<Itinerary?> loadLatest() async => null;
-  @override Future<void> save(Itinerary itinerary) async {}
+  @override
+  Future<void> clearAll() async {}
+  @override
+  Future<bool> deleteItinerary(String id) async => true;
+  @override
+  Future<List<CachedItinerarySummary>> listItineraries() async => [];
+  @override
+  Future<Itinerary?> loadItinerary(String id) async => null;
+  @override
+  Future<Itinerary?> loadLatest() async => null;
+  @override
+  Future<void> save(Itinerary itinerary) async {}
 }
 
 void main() {
@@ -35,7 +41,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          overrides: [
+            itineraryCacheProvider.overrideWithValue(MockItineraryCache()),
+          ],
           child: const App(),
         ),
       );
@@ -47,7 +55,9 @@ void main() {
     testWidgets('App uses Material 3', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          overrides: [
+            itineraryCacheProvider.overrideWithValue(MockItineraryCache()),
+          ],
           child: const App(),
         ),
       );
@@ -59,9 +69,14 @@ void main() {
     });
 
     testWidgets('Bottom NavigationBar has 3 destinations', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(500, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          overrides: [
+            itineraryCacheProvider.overrideWithValue(MockItineraryCache()),
+          ],
           child: const App(),
         ),
       );
@@ -70,12 +85,34 @@ void main() {
       expect(navBar.destinations.length, 3);
     });
 
+    testWidgets('NavigationRail replaces bottom nav at tablet width', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(720, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            itineraryCacheProvider.overrideWithValue(MockItineraryCache()),
+          ],
+          child: const App(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+    });
+
     testWidgets('Tapping History tab navigates to History screen', (
       tester,
     ) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          overrides: [
+            itineraryCacheProvider.overrideWithValue(MockItineraryCache()),
+          ],
           child: const App(),
         ),
       );
@@ -84,7 +121,12 @@ void main() {
       await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Your travel adventures start here. Type your first destination above!'), findsOneWidget);
+      expect(
+        find.text(
+          'Your travel adventures start here. Type your first destination above!',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Tapping Settings tab navigates to Settings screen', (
@@ -92,7 +134,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [itineraryCacheProvider.overrideWithValue(MockItineraryCache())],
+          overrides: [
+            itineraryCacheProvider.overrideWithValue(MockItineraryCache()),
+          ],
           child: const App(),
         ),
       );
