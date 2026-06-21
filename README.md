@@ -49,11 +49,9 @@ Built with a Flutter mobile frontend and a Python FastAPI backend powered by Lan
 
 ## Demo
 
-<!-- TODO: Add screenshots or demo video of the app in action -->
-
-| Home Screen | Live Generation | Itinerary View | Map View |
-|:-:|:-:|:-:|:-:|
-| *Screenshot coming soon* | *Screenshot coming soon* | *Screenshot coming soon* | *Screenshot coming soon* |
+| Home Screen | Home with Prompt | Event Streaming | Itinerary View | Map View |
+|:-:|:-:|:-:|:-:|:-:|
+| ![Home Screen](https://github.com/user-attachments/assets/513781c6-5a81-47fc-82f4-77f0652cff2e) | ![Home with Prompt](https://github.com/user-attachments/assets/41db2de5-c959-4b25-97bd-9c41af049203) | ![Event Streaming](https://github.com/user-attachments/assets/56a30fb9-58c5-469d-adde-bb87a65d0979) | ![Itinerary View](https://github.com/user-attachments/assets/1623494c-4979-42c1-8895-c3e48d58f585) | ![Map View](https://github.com/user-attachments/assets/7648dd9b-a75b-4506-8bd7-388fc0e48609) |
 
 ---
 
