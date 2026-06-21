@@ -59,7 +59,7 @@ Built with a Flutter mobile frontend and a Python FastAPI backend powered by Lan
 
 **Generation time:** ~46 seconds (edited for brevity)
 
-[![Watch the demo video](https://github.com/user-attachments/assets/6308a101-fbd9-41d2-8bed-6347d2b9bdcc)](https://github.com/user-attachments/assets/6308a101-fbd9-41d2-8bed-6347d2b9bdcc)
+[Watch the demo video](https://github.com/user-attachments/assets/6308a101-fbd9-41d2-8bed-6347d2b9bdcc)
 
 ---
 
