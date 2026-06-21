@@ -53,6 +53,14 @@ Built with a Flutter mobile frontend and a Python FastAPI backend powered by Lan
 |:-:|:-:|:-:|:-:|:-:|
 | ![Home Screen](https://github.com/user-attachments/assets/513781c6-5a81-47fc-82f4-77f0652cff2e) | ![Home with Prompt](https://github.com/user-attachments/assets/41db2de5-c959-4b25-97bd-9c41af049203) | ![Event Streaming](https://github.com/user-attachments/assets/56a30fb9-58c5-469d-adde-bb87a65d0979) | ![Itinerary View](https://github.com/user-attachments/assets/1623494c-4979-42c1-8895-c3e48d58f585) | ![Map View](https://github.com/user-attachments/assets/7648dd9b-a75b-4506-8bd7-388fc0e48609) |
 
+**Video Demo:** Full end-to-end generation for this test prompt:
+
+> *"I'm planning a weekend trip to Barcelona next month. I'm interested in food and history. I have 2 days and a budget of $500."*
+
+**Generation time:** ~46 seconds (edited for brevity)
+
+[![Watch the demo video](https://github.com/user-attachments/assets/6308a101-fbd9-41d2-8bed-6347d2b9bdcc)](https://github.com/user-attachments/assets/6308a101-fbd9-41d2-8bed-6347d2b9bdcc)
+
 ---
 
 ## Tech Stack
