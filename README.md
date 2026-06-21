@@ -51,7 +51,7 @@ Built with a Flutter mobile frontend and a Python FastAPI backend powered by Lan
 
 | Home Screen | Home with Prompt | Event Streaming | Itinerary View | Map View |
 |:-:|:-:|:-:|:-:|:-:|
-| <img src="https://github.com/user-attachments/assets/513781c6-5a81-47fc-82f4-77f0652cff2e" alt="Home Screen" width="160" /> | <img src="https://github.com/user-attachments/assets/41db2de5-c959-4b25-97bd-9c41af049203" alt="Home with Prompt" width="160" /> | <img src="https://github.com/user-attachments/assets/56a30fb9-58c5-469d-adde-bb87a65d0979" alt="Event Streaming" width="160" /> | <img src="https://github.com/user-attachments/assets/1623494c-4979-42c1-8895-c3e48d58f585" alt="Itinerary View" width="160" /> | <img src="https://github.com/user-attachments/assets/2566fd04-8351-407b-90fc-8bc4c498ee4d" alt="Map View" width="160" /> |
+| <img src=".github/assets/nomad-agent-home-no-prompt.jpg" alt="Home Screen" width="160" /> | <img src=".github/assets/nomad-agent-home-with-prompt.jpg" alt="Home with Prompt" width="160" /> | <img src=".github/assets/nomad-agent-event.jpg" alt="Event Streaming" width="160" /> | <img src=".github/assets/nomad-agent-itinerary.jpg" alt="Itinerary View" width="160" /> | <img src=".github/assets/nomad-agent-map.jpg" alt="Map View" width="160" /> |
 
 **Video Demo:** Full end-to-end generation for this test prompt:
 
