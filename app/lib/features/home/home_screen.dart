@@ -75,52 +75,65 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Home')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Describe your dream trip in a sentence. NomadAgent handles the rest.',
-                style: AppTypography.bodySmall(
-                  color: theme.colorScheme.onSurface,
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontalPadding = constraints.maxWidth >= 600
+              ? AppSpacing.xxl
+              : AppSpacing.md;
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                AppSpacing.md,
+                horizontalPadding,
+                AppSpacing.md,
               ),
-              const SizedBox(height: AppSpacing.md),
-              PromptInput(
-                controller: _promptController,
-                enabled: !_isSubmitting,
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _handleSubmit(),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SuggestionChips(onSuggestionSelected: _handleSuggestionTap),
-              const SizedBox(height: AppSpacing.xl),
-              ElevatedButton(
-                onPressed: _canSubmit ? _handleSubmit : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  disabledBackgroundColor: AppColors.secondary.withValues(
-                    alpha: 0.3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Describe your dream trip in a sentence. NomadAgent handles the rest.',
+                    style: AppTypography.bodySmall(
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
-                  foregroundColor: AppColors.onSecondary,
-                  disabledForegroundColor: AppColors.onSecondary.withValues(
-                    alpha: 0.3,
+                  const SizedBox(height: AppSpacing.md),
+                  PromptInput(
+                    controller: _promptController,
+                    enabled: !_isSubmitting,
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _handleSubmit(),
                   ),
-                  minimumSize: const Size.fromHeight(52),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Go'),
+                  const SizedBox(height: AppSpacing.md),
+                  SuggestionChips(onSuggestionSelected: _handleSuggestionTap),
+                  const SizedBox(height: AppSpacing.xl),
+                  ElevatedButton(
+                    onPressed: _canSubmit ? _handleSubmit : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      disabledBackgroundColor: AppColors.secondary.withValues(
+                        alpha: 0.3,
+                      ),
+                      foregroundColor: AppColors.onSecondary,
+                      disabledForegroundColor: AppColors.onSecondary.withValues(
+                        alpha: 0.3,
+                      ),
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Go'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

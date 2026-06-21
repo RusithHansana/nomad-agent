@@ -153,9 +153,21 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Generating…')),
-      body: hasPrompt
-          ? Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontalPadding = constraints.maxWidth >= 600
+              ? AppSpacing.xxl
+              : AppSpacing.md;
+          final contentPadding = EdgeInsets.fromLTRB(
+            horizontalPadding,
+            AppSpacing.md,
+            horizontalPadding,
+            AppSpacing.md,
+          );
+
+          if (hasPrompt) {
+            return Padding(
+              padding: contentPadding,
               child: Stack(
                 children: [
                   ThoughtLogViewer(
@@ -200,18 +212,22 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
                   ),
                 ],
               ),
-            )
-          : Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Text(
-                  'No prompt received yet. Start from Home to generate your trip.',
-                  maxLines: 6,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
+            );
+          }
+
+          return Center(
+            child: Padding(
+              padding: contentPadding,
+              child: Text(
+                'No prompt received yet. Start from Home to generate your trip.',
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ),
+          );
+        },
+      ),
     );
   }
 }

@@ -18,15 +18,34 @@ class HistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text('History')),
-      body: cachedAsync.when(
-        data: (itineraries) {
-          if (itineraries.isEmpty) {
-            return _buildEmptyState(context);
-          }
-          return _buildList(context, ref, itineraries);
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontalPadding = constraints.maxWidth >= 600
+              ? AppSpacing.xxl
+              : 0.0;
+
+          return cachedAsync.when(
+            data: (itineraries) {
+              if (itineraries.isEmpty) {
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: _buildEmptyState(context),
+                );
+              }
+              return _buildList(
+                context,
+                ref,
+                itineraries,
+                horizontalPadding: horizontalPadding,
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: _buildErrorState(context, ref, error),
+            ),
+          );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => _buildErrorState(context, ref, error),
       ),
     );
   }
@@ -81,9 +100,11 @@ class HistoryScreen extends ConsumerWidget {
   Widget _buildList(
     BuildContext context,
     WidgetRef ref,
-    List<CachedItinerarySummary> itineraries,
-  ) {
+    List<CachedItinerarySummary> itineraries, {
+    required double horizontalPadding,
+  }) {
     return ListView.separated(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       itemCount: itineraries.length,
       separatorBuilder: (_, _) => const Divider(),
       itemBuilder: (context, index) {

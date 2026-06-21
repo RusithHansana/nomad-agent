@@ -15,12 +15,18 @@ class VenueTimelineCard extends StatefulWidget {
     super.key,
     required this.venue,
     required this.index,
+    required this.displayIndex,
     required this.onViewSource,
+    required this.onSelected,
+    required this.isSelected,
   });
 
   final Venue venue;
   final int index;
+  final int displayIndex;
   final Future<void> Function(Venue venue) onViewSource;
+  final VoidCallback onSelected;
+  final bool isSelected;
 
   @override
   State<VenueTimelineCard> createState() => _VenueTimelineCardState();
@@ -84,6 +90,13 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
     final hasVerificationNote =
         verificationNote != null && verificationNote.isNotEmpty;
 
+    final selectedBorder = widget.isSelected
+        ? BorderSide(color: primaryColor, width: 1.5)
+        : BorderSide.none;
+    final selectedFill = widget.isSelected
+        ? primaryColor.withValues(alpha: 0.08)
+        : null;
+
     final content = Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
@@ -95,7 +108,7 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _timeLabel(widget.venue, widget.index),
+                  _timeLabel(widget.venue, widget.displayIndex),
                   style: AppTypography.caption(color: textSecondary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -125,108 +138,121 @@ class _VenueTimelineCardState extends State<VenueTimelineCard> {
           Expanded(
             child: Card(
               margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (badgeType == VerificationBadgeType.verified)
-                      Wrap(
-                        spacing: AppSpacing.xs,
-                        runSpacing: AppSpacing.xxs,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            widget.venue.name,
-                            style: AppTypography.h3(color: textPrimary),
-                          ),
-                          VerificationBadge(
-                            type: VerificationBadgeType.verified,
-                            sourceUrl: widget.venue.sourceUrl,
-                          ),
-                        ],
-                      )
-                    else ...[
-                      Text(
-                        widget.venue.name,
-                        style: AppTypography.h3(color: textPrimary),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      VerificationBadge(
-                        type: badgeType,
-                        sourceUrl: widget.venue.sourceUrl,
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      widget.venue.address,
-                      style: AppTypography.bodySmall(color: textSecondary),
-                    ),
-                    if (badgeType != VerificationBadgeType.verified &&
-                        hasVerificationNote)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                        child: Text(
-                          verificationNote,
-                          style: AppTypography.bodySmall(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.sm),
+                side: selectedBorder,
+              ),
+              color: selectedFill,
+              child: InkWell(
+                onTap: widget.onSelected,
+                borderRadius: BorderRadius.circular(AppSpacing.sm),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (badgeType == VerificationBadgeType.verified)
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xxs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              widget.venue.name,
+                              style: AppTypography.h3(color: textPrimary),
+                            ),
+                            VerificationBadge(
+                              type: VerificationBadgeType.verified,
+                              sourceUrl: widget.venue.sourceUrl,
+                            ),
+                          ],
+                        )
+                      else ...[
+                        Text(
+                          widget.venue.name,
+                          style: AppTypography.h3(color: textPrimary),
                         ),
-                      ),
-                    if (openingHoursText != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        VerificationBadge(
+                          type: badgeType,
+                          sourceUrl: widget.venue.sourceUrl,
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        openingHoursText,
+                        widget.venue.address,
                         style: AppTypography.bodySmall(color: textSecondary),
                       ),
-                      if (statusText != null)
+                      if (badgeType != VerificationBadgeType.verified &&
+                          hasVerificationNote)
                         Padding(
                           padding: const EdgeInsets.only(top: AppSpacing.xxs),
                           child: Text(
-                            statusText,
+                            verificationNote,
                             style: AppTypography.bodySmall(
-                              color: statusText == 'Open now'
-                                  ? AppColors.success
-                                  : AppColors.error,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
-                    ],
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        if (widget.venue.rating != null)
-                          Text(
-                            '★ ${widget.venue.rating!.toStringAsFixed(1)}',
-                            style: AppTypography.bodySmall(color: textPrimary),
-                          ),
-                        if (widget.venue.venueType != null)
-                          VenueTypeLabel(
-                            type: widget.venue.venueType!,
-                            color: textPrimary,
-                          ),
-                        if (_costText(widget.venue) != null)
-                          Text(
-                            _costText(widget.venue)!,
-                            style: AppTypography.bodySmall(color: textPrimary),
+                      if (openingHoursText != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          openingHoursText,
+                          style: AppTypography.bodySmall(color: textSecondary),
+                        ),
+                        if (statusText != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                            child: Text(
+                              statusText,
+                              style: AppTypography.bodySmall(
+                                color: statusText == 'Open now'
+                                    ? AppColors.success
+                                    : AppColors.error,
+                              ),
+                            ),
                           ),
                       ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Semantics(
-                      button: true,
-                      label: 'View source',
-                      child: InkWell(
-                        onTap: () => widget.onViewSource(widget.venue),
-                        child: Text(
-                          'View source →',
-                          style: AppTypography.bodySmall(color: primaryColor),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          if (widget.venue.rating != null)
+                            Text(
+                              '★ ${widget.venue.rating!.toStringAsFixed(1)}',
+                              style: AppTypography.bodySmall(
+                                color: textPrimary,
+                              ),
+                            ),
+                          if (widget.venue.venueType != null)
+                            VenueTypeLabel(
+                              type: widget.venue.venueType!,
+                              color: textPrimary,
+                            ),
+                          if (_costText(widget.venue) != null)
+                            Text(
+                              _costText(widget.venue)!,
+                              style: AppTypography.bodySmall(
+                                color: textPrimary,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Semantics(
+                        button: true,
+                        label: 'View source',
+                        child: InkWell(
+                          onTap: () => widget.onViewSource(widget.venue),
+                          child: Text(
+                            'View source →',
+                            style: AppTypography.bodySmall(color: primaryColor),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

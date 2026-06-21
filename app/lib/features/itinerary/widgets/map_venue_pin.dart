@@ -12,12 +12,14 @@ class MapVenuePin extends StatefulWidget {
     required this.isVerified,
     required this.index,
     this.venueType,
+    this.isSelected = false,
   });
 
   final int number;
   final bool isVerified;
   final int index;
   final String? venueType;
+  final bool isSelected;
 
   @override
   State<MapVenuePin> createState() => _MapVenuePinState();
@@ -82,6 +84,13 @@ class _MapVenuePinState extends State<MapVenuePin> {
         ? AppColors.secondary
         : AppColors.warning;
 
+    final highlightBorder = widget.isSelected
+        ? Border.all(color: AppColors.onSecondary, width: 3)
+        : Border.all(color: AppColors.onSecondary, width: 2);
+    final highlightShadow = widget.isSelected
+        ? Colors.black.withValues(alpha: 0.2)
+        : Colors.black.withValues(alpha: 0.13);
+
     final content = Container(
       width: 32,
       height: 32,
@@ -89,12 +98,12 @@ class _MapVenuePinState extends State<MapVenuePin> {
       decoration: BoxDecoration(
         color: pinColor,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.onSecondary, width: 2),
+        border: highlightBorder,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.13),
-            blurRadius: 6,
-            offset: Offset(0, 2),
+            color: highlightShadow,
+            blurRadius: widget.isSelected ? 8 : 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
