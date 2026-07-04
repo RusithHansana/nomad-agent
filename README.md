@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://img.icons8.com/fluency/96/around-the-globe.png" alt="NomadAgent Logo" width="96" />
+  <img src=".github/assets/nomad-agent-cover.png" alt="NomadAgent Cover" />
 </p>
-
-<h1 align="center">NomadAgent</h1>
 
 <p align="center">
   <strong>Describe your trip in plain language, watch AI research it in real time, and receive a verified itinerary.</strong>
