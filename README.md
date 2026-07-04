@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/nomad-agent-cover.png" alt="NomadAgent Cover" />
+  <img src=".github/assets/nomad-agent-cover.jpg" alt="NomadAgent Cover" />
 </p>
 
 <p align="center">
